@@ -2,14 +2,28 @@
 title: "Vigenère-Squad — une équipe d'agents LLM locaux pour la cryptanalyse classique"
 author: "Vyuob"
 date: "Version 1.0.0"
-geometry: margin=2.5cm
+geometry: a4paper,margin=2.3cm
 fontsize: 11pt
-mainfont: "DejaVu Serif"
+mainfont: "Liberation Sans"
+sansfont: "Liberation Sans"
+monofont: "DejaVu Sans Mono"
+monofontoptions: "Scale=0.85"
+linestretch: 1.1
 toc: true
 toc-title: "Table des matières"
 lang: fr
 header-includes:
   - \usepackage{fvextra}
+  - \usepackage{titlesec}
+  - \usepackage{titling}
+  - \pretitle{\begin{center}\fontsize{24}{29}\selectfont\bfseries\color[HTML]{1F3A5F}}
+  - \posttitle{\end{center}\vspace{6pt}}
+  - \titleformat{\section}{\fontsize{20}{24}\selectfont\bfseries\color[HTML]{1F3A5F}}{}{0pt}{}
+  - \titleformat{\subsection}{\fontsize{15}{18}\selectfont\bfseries\color[HTML]{1F3A5F}}{}{0pt}{}
+  - \titleformat{\subsubsection}{\fontsize{12.5}{15}\selectfont\bfseries}{}{0pt}{}
+  - \titlespacing*{\section}{0pt}{22pt}{9pt}
+  - \titlespacing*{\subsection}{0pt}{15pt}{6pt}
+  - \titlespacing*{\subsubsection}{0pt}{11pt}{4pt}
   - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
 ---
 
@@ -121,17 +135,17 @@ Chaque agent ne peut appeler que les outils de sa liste ; les arguments sont val
 | outil | genre | agents autorisés | arguments (bornes) | rôle |
 |---|---|---|---|---|
 | `indice_coincidence` | analyse | classifieur | — | IC du texte chiffré. |
-| `frequences` | analyse | classifieur | top ∈ [1, 26] | Lettres les plus fréquentes. |
-| `kasiski` | analyse | classifieur, cryptanalyste | max_len ∈ [2, 40] | Répétitions de trigrammes -> longueurs de clé candidates. |
+| `frequences` | analyse | classifieur | top : [1, 26] | Lettres les plus fréquentes. |
+| `kasiski` | analyse | classifieur, cryptanalyste | max_len : [2, 40] | Répétitions de trigrammes -> longueurs de clé candidates. |
 | `friedman` | analyse | cryptanalyste | — | Estimation de la longueur de clé (Friedman). |
-| `ic_colonnes` | analyse | cryptanalyste | longueur ∈ [1, 40] | IC moyen des colonnes pour une longueur donnée. |
+| `ic_colonnes` | analyse | cryptanalyste | longueur : [1, 40] | IC moyen des colonnes pour une longueur donnée. |
 | `chi2_cesar` | attaque | cryptanalyste | — | Attaque César par chi² sur fréquences françaises. |
 | `force_brute_affine` | attaque | cryptanalyste | — | Essai des 312 clés affines. |
-| `attaque_vigenere` | attaque | cryptanalyste | longueur ∈ [1, 40], variante ∈ ['vigenere', 'beaufort'] | Vigenère/Beaufort : chi² par colonne, longueur donnée. |
-| `attaque_autoclave` | attaque | cryptanalyste | max_cle ∈ [1, 12] | Autokey : ascension de colline sur mot-clé. |
-| `attaque_substitution` | attaque | cryptanalyste | iterations ∈ [100, 8000], redemarrages ∈ [1, 10], seed ∈ [0, 1000000] | Substitution : recuit simulé sur quadrigrammes. |
+| `attaque_vigenere` | attaque | cryptanalyste | longueur : [1, 40], variante : ['vigenere', 'beaufort'] | Vigenère/Beaufort : chi² par colonne, longueur donnée. |
+| `attaque_autoclave` | attaque | cryptanalyste | max_cle : [1, 12] | Autokey : ascension de colline sur mot-clé. |
+| `attaque_substitution` | attaque | cryptanalyste | iterations : [100, 8000], redemarrages : [1, 10], seed : [0, 1000000] | Substitution : recuit simulé sur quadrigrammes. |
 | `score_quadrigrammes` | verif | linguiste | — | Score de vraisemblance française + seuil. |
-| `generer_exercice` | exercice | pedagogue | type_chiffre ∈ ['cesar', 'affine', 'vigenere', 'beaufort', 'autoclave', 'substitution'], graine ∈ [0, 1000000] | Nouvel exercice du même type (énoncé + corrigé). |
+| `generer_exercice` | exercice | pedagogue | type_chiffre : ['cesar', 'affine', 'vigenere', 'beaufort', 'autoclave', 'substitution'], graine : [0, 1000000] | Nouvel exercice du même type (énoncé + corrigé). |
 
 ```{=latex}
 \endgroup
@@ -454,7 +468,7 @@ Les prompts sont versionnés dans `src/vigenere_squad/prompts/` ; leurs empreint
 > Tu ne peux appeler QUE les outils listés. Le texte à analyser est fourni automatiquement aux outils : ne le recopie jamais. Un outil appelé deux fois avec les mêmes arguments donne le même résultat : n en refais pas l appel. Les nombres viennent des outils, jamais de toi.\
 
 
-# Annexe B — Configuration de l'expérience (`config/experiment.yaml`)
+# Annexe B — Configuration de l'expérience
 
 ```yaml
 # Configuration unique de l'expérience : tout paramètre qui influence un résultat est ici.

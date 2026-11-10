@@ -80,7 +80,7 @@ def read_txt(rel):
 outils_tab = "| outil | genre | agents autorisés | arguments (bornes) | rôle |\n|---|---|---|---|---|\n"
 for nom, (_, genre, desc, spec) in OUTILS.items():
     ags = ", ".join(a for a, l in ALLOWLIST.items() if nom in l)
-    sp = ", ".join(f"{a} ∈ {v}" if isinstance(v, list) else f"{a} ∈ [{v[1]}, {v[2]}]" for a, v in spec.items()) or "—"
+    sp = ", ".join(f"{a} : {v}" if isinstance(v, list) else f"{a} : [{v[1]}, {v[2]}]" for a, v in spec.items()) or "—"
     outils_tab += f"| `{nom}` | {genre} | {ags} | {sp} | {desc} |\n"
 
 recap = "| système | succès | exactitude moyenne | durée moyenne par texte | messages agent par texte |\n|---|---|---|---|---|\n"
@@ -130,14 +130,28 @@ md = f"""---
 title: "Vigenère-Squad — une équipe d'agents LLM locaux pour la cryptanalyse classique"
 author: "Vyuob"
 date: "Version 1.0.0"
-geometry: margin=2.5cm
+geometry: a4paper,margin=2.3cm
 fontsize: 11pt
-mainfont: "DejaVu Serif"
+mainfont: "Liberation Sans"
+sansfont: "Liberation Sans"
+monofont: "DejaVu Sans Mono"
+monofontoptions: "Scale=0.85"
+linestretch: 1.1
 toc: true
 toc-title: "Table des matières"
 lang: fr
 header-includes:
   - \\usepackage{{fvextra}}
+  - \\usepackage{{titlesec}}
+  - \\usepackage{{titling}}
+  - \\pretitle{{\\begin{{center}}\\fontsize{{24}}{{29}}\\selectfont\\bfseries\\color[HTML]{{1F3A5F}}}}
+  - \\posttitle{{\\end{{center}}\\vspace{{6pt}}}}
+  - \\titleformat{{\\section}}{{\\fontsize{{20}}{{24}}\\selectfont\\bfseries\\color[HTML]{{1F3A5F}}}}{{}}{{0pt}}{{}}
+  - \\titleformat{{\\subsection}}{{\\fontsize{{15}}{{18}}\\selectfont\\bfseries\\color[HTML]{{1F3A5F}}}}{{}}{{0pt}}{{}}
+  - \\titleformat{{\\subsubsection}}{{\\fontsize{{12.5}}{{15}}\\selectfont\\bfseries}}{{}}{{0pt}}{{}}
+  - \\titlespacing*{{\\section}}{{0pt}}{{22pt}}{{9pt}}
+  - \\titlespacing*{{\\subsection}}{{0pt}}{{15pt}}{{6pt}}
+  - \\titlespacing*{{\\subsubsection}}{{0pt}}{{11pt}}{{4pt}}
   - \\DefineVerbatimEnvironment{{Highlighting}}{{Verbatim}}{{breaklines,commandchars=\\\\\\{{\\}}}}
 ---
 
@@ -324,7 +338,7 @@ Voir `AI_USAGE.md` : conception et code réalisés avec l'assistance de Claude (
 Les prompts sont versionnés dans `src/vigenere_squad/prompts/` ; leurs empreintes SHA-256 figurent dans `results/ENVIRONMENT.json`.
 {prompts_txt}
 
-# Annexe B — Configuration de l'expérience (`config/experiment.yaml`)
+# Annexe B — Configuration de l'expérience
 
 ```yaml
 {config_txt}
