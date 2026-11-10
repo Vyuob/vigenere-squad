@@ -21,7 +21,7 @@ contexte 4096 (8 Go).
 **Limites connues.**
 - Corpus d'entraînement du modèle de langue très petit (~6,7 ko) ; la substitution sur textes courts (≤ 100 lettres) est peu fiable.
 - Sans LLM, la politique à règles des agents obtient des taux **comparables, légèrement inférieurs** à la baseline « outils seuls » (voir `results/metrics.json` : `agents_scriptes` vs `outils_seuls`), surtout sur Vigenère/Beaufort courts. L'apport des agents n'est donc pas un gain de précision mais de modularité, traçabilité et explication ; ne pas le présenter autrement.
-- Le LLM n'est pas évalué à grande échelle (sous-ensemble minimal : 6 textes × 1 répétition × 1 modèle, `qwen3:4b`) pour tenir sur un portable.
+- Le LLM n'est pas évalué à grande échelle (sous-ensemble minimal : 6 textes × 1 répétition par modèle ; trois modèles : `qwen3:4b` 50 %, `qwen3:0.6b` 0 %, `llama3.2:3b` 0 %) pour tenir sur un portable : résultats indicatifs.
 - Un clair non français (anglais) fait échouer le Linguiste : le système suppose le français.
 - Substitutions affines/César reconnues comme « substitution » possibles : le critère de succès est le clair retrouvé, pas le nom du chiffrement.
 

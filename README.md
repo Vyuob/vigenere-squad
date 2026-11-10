@@ -73,4 +73,4 @@ Voir la [page des résultats](https://vyuob.github.io/vigenere-squad/) (génér�
 Corpus modeste, LLM évalué sur un sous-ensemble, français uniquement : voir la section « Limites connues » de [SYSTEM_CARD.md](SYSTEM_CARD.md).
 
 ## Licence et citation
-MIT (code), CC0 (textes d'exemple). Citer via [CITATION.cff](CITATION.cff) ; archive Zenodo de la release `v1.0.0` (DOI [10.5281/zenodo.24110323](https://doi.org/10.5281/zenodo.24110323)).
+MIT (code) ; CC BY 4.0 (documentation, données, résultats), voir [LICENSES.md](LICENSES.md) ; écarts au sujet : [ECARTS.md](ECARTS.md) ; journal des prompts : [PROMPTS_CHANGELOG.md](PROMPTS_CHANGELOG.md). Citer via [CITATION.cff](CITATION.cff) ; archive Zenodo de la release `v1.0.0` (DOI de toutes les versions : [10.5281/zenodo.24110322](https://doi.org/10.5281/zenodo.24110322)).

@@ -19,7 +19,7 @@ Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est
 
 ## Vérifications externes et limites restantes
 - **Fait** : archive Zenodo (DOI 10.5281/zenodo.24110323), signature minisign de `SHA256SUMS`, page GitHub Pages, exécution CI sur le tag `v1.0.0` (run 42825725967).
-- **Mesures LLM** (`llm` dans `metrics.json`) : produites sur une machine avec Ollama ; dans le dépôt elles portent sur `qwen3:4b` (6 textes, 1 répétition, Windows, CPU seul, 2 011 s). Le second modèle n'a pas été évalué.
+- **Mesures LLM** (`llm` dans `metrics.json`) : produites sur une machine avec Ollama ; dans le dépôt elles portent sur trois modèles (`qwen3:4b` 50 %, `qwen3:0.6b` 0 %, `llama3.2:3b` 0 % ; 6 textes, 1 répétition chacun, Windows, CPU seul).
 - Durée et mémoire de la reproduction hors LLM : 271 s, pic 63 Mo (`meta.duree_totale_s`, `meta.pic_memoire_mo`), Linux 2 CPU, 7,8 Go.
 - Pas de vidéo de démonstration.
 - **Limites observées avec le LLM** (`traces/llm_qwen3_4b/`) : boucles d'appels d'outil jusqu'à la limite de pas, explications du Pédagogue parfois fausses, exercices non vérifiés lorsque l'outil `generer_exercice` n'est pas appelé, gabarit du prompt recopié par le Classifieur dans un cas.

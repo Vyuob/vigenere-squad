@@ -90,6 +90,27 @@ for k_, v_ in (m.get("llm") or {}).items():
     if isinstance(v_, dict) and v_.get("n"):
         recap += f"| (c) LLM `{v_['modele']}` (n={v_['n']}) | {P(v_['succes_global'])} | {P(v_['exactitude_moyenne'])} | {v_['duree_moyenne_s']} s | {v_['appels_llm_moyen']} |\n"
 
+def _lmin(pc, seuil=0.9):
+    """Plus petite longueur L telle que le succès est >= seuil pour L et pour toutes les longueurs plus grandes testées."""
+    res = {}
+    for ch in sorted({k.split("|")[0] for k in pc}):
+        ls = sorted(int(k.split("|")[1]) for k in pc if k.startswith(ch + "|"))
+        ok = [L for L in ls if all(pc[f"{ch}|{L2}"] >= seuil for L2 in ls if L2 >= L)]
+        res[ch] = min(ok) if ok else None
+    return res
+_lo, _la = _lmin(O["par_cellule"]), _lmin(A["par_cellule"])
+_f = lambda v: f"{v} lettres" if v else "> longueur maximale testée"
+lmin_tab = "| chiffrement | outils seuls | agents à règles |\n|---|---|---|\n" + "".join(f"| {c} | {_f(_lo[c])} | {_f(_la[c])} |\n" for c in _lo)
+if llm and "statut" not in llm:
+    _l = " ; ".join(f"`{v['modele']}` : {P(v['succes_global'])} (n={v['n']}, repli moyen {v['repli_moyen']})" for v in llm.values() if v.get("n"))
+    ablation = (f"**Étude d'ablation (textes de 200 lettres, mêmes chiffrements).** (a) outils seuls : {P(O['par_longueur']['200'])} ; "
+        f"(b) agents à règles, sans LLM : {P(A['par_longueur']['200'])} ; (c) agents avec LLM : {_l}.\n\n"
+        "**Conclusion sur l'apport mesuré des agents.** Dans nos mesures, les agents n'apportent **aucun gain de précision significatif** sur la baseline codée en dur (écart d'environ un point, dans les deux sens selon la longueur), "
+        "et les modèles de langage testés (0,6 à 4 milliards de paramètres, sur CPU) **dégradent** le résultat : seul `qwen3:4b` réussit une partie des textes, "
+        "les deux autres modèles échouent sur les six. L'apport des agents est ailleurs : traçabilité de chaque décision, explication rédigée, et tolérance aux pannes mesurée (§5.4). "
+        "Ces mesures LLM portent sur 6 textes et 1 répétition par modèle, sans écart type : elles sont indicatives, pas statistiquement significatives.")
+else:
+    ablation = ""
 delta = "| cellule (chiffrement / longueur) | outils seuls | agents à règles | écart |\n|---|---|---|---|\n"
 nb_diff = 0
 for c_, va in A["par_cellule"].items():
@@ -235,7 +256,7 @@ Environnement de cette exécution : Python {env['python']}, {env['plateforme']},
 
 ![Succès par chiffrement et longueur](../results/figures/succes_par_chiffre_longueur.png)
 
-**Lecture.** Au-delà de 500 lettres tout est cassé. Les chiffrements monoalphabétiques simples le sont dès 50 lettres. La substitution demande environ 200 lettres ou plus, ce qui est cohérent avec la distance d'unicité (§5.5).
+**Longueur minimale de succès à 90 %** (plus petite longueur testée à partir de laquelle le taux de clair exact est ≥ 90 % pour toutes les longueurs supérieures ; valeurs dérivées de `par_cellule` dans `results/metrics.json`) :\n\n{lmin_tab}\n**Lecture.** Au-delà de 500 lettres tout est cassé. Les chiffrements monoalphabétiques simples le sont dès 50 lettres. La substitution demande environ 200 lettres ou plus, ce qui est cohérent avec la distance d'unicité (§5.5).
 Les agents à règles font **moins bien** que la baseline sur Vigenère et Beaufort courts : choisir la longueur de clé par Kasiski + IC des colonnes est moins fiable que tester les longueurs 2–12 et garder le meilleur score.
 
 **Cellules où les agents diffèrent de la baseline (écart > 5 points) :**
@@ -246,6 +267,8 @@ Les agents à règles font **moins bien** que la baseline sur Vigenère et Beauf
 
 {tl}
 {llm_cells}
+
+{ablation}
 
 ## 5.4 Robustesse et pannes
 
@@ -296,7 +319,7 @@ On y voit le modèle enchaîner des appels d'outils valides, puis conclure « fi
 - **Résultat négatif assumé** : les agents ne battent pas la baseline en précision. Leur valeur : modularité, trace complète, explications, tolérance aux pannes, listes d'outils fermées.
 - **Corpus d'entraînement minuscule** (≈ 6,7 ko) : modèle de langue pauvre, entropie surestimée, textes de test qui se recouvrent aux grandes longueurs.
 - **Linguiste** : le seuil accepte parfois un clair en partie faux ; il suppose le français.
-- **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, un seul modèle, `qwen3:4b`) pour tenir sur un portable sans GPU ; le second modèle prévu (`llama3.2:3b`) n'a pas été évalué dans le temps imparti. Les mesures LLM sont donc indicatives.
+- **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, trois modèles : `qwen3:4b`, `qwen3:0.6b` et `llama3.2:3b`) pour tenir sur un portable sans GPU. Les mesures LLM sont donc indicatives.
 - Pas de comparaison avec un LLM seul sans outils (hors périmètre) ; les LLM de ≤ 8 Go calculent mal des fréquences, ce qui justifie la répartition « LLM décide / code calcule ».
 
 ## 6.1 Travaux liés

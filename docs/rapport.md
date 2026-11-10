@@ -196,9 +196,22 @@ Environnement de cette exécution : Python 3.13.18, Linux-6.18.44-fc-v338-x86_64
 | (a) outils seuls | 86.7 % | 91.6 % | 0.1599 s | — |
 | (b) agents à règles | 85.6 % | 89.9 % | 0.1589 s | 16.28 |
 | (c) LLM `qwen3:4b` (n=6) | 50.0 % | 51.7 % | 335.1783 s | 32.6667 |
+| (c) LLM `qwen3:0.6b` (n=6) | 0.0 % | 0.0 % | 101.0917 s | 26.0 |
+| (c) LLM `llama3.2:3b` (n=6) | 0.0 % | 0.0 % | 299.915 s | 50.6667 |
 
 
 ![Succès par chiffrement et longueur](../results/figures/succes_par_chiffre_longueur.png)
+
+**Longueur minimale de succès à 90 %** (plus petite longueur testée à partir de laquelle le taux de clair exact est ≥ 90 % pour toutes les longueurs supérieures ; valeurs dérivées de `par_cellule` dans `results/metrics.json`) :
+
+| chiffrement | outils seuls | agents à règles |
+|---|---|---|
+| affine | 50 lettres | 50 lettres |
+| autoclave | 100 lettres | 100 lettres |
+| beaufort | 200 lettres | 200 lettres |
+| cesar | 50 lettres | 50 lettres |
+| substitution | 500 lettres | 200 lettres |
+| vigenere | 100 lettres | 500 lettres |
 
 **Lecture.** Au-delà de 500 lettres tout est cassé. Les chiffrements monoalphabétiques simples le sont dès 50 lettres. La substitution demande environ 200 lettres ou plus, ce qui est cohérent avec la distance d'unicité (§5.5).
 Les agents à règles font **moins bien** que la baseline sur Vigenère et Beaufort courts : choisir la longueur de clé par Kasiski + IC des colonnes est moins fiable que tester les longueurs 2–12 et garder le meilleur score.
@@ -222,7 +235,15 @@ Les agents à règles font **moins bien** que la baseline sur Vigenère et Beauf
 
 **qwen3_4b** (`qwen3:4b`) : succès 50.0 %, n=6, σ répétitions sans objet : 1 répétition, appels LLM moyens 32.6667, formats invalides moyens 0.0, durée moyenne 335.1783 s par texte.
 
+**qwen3_0.6b** (`qwen3:0.6b`) : succès 0.0 %, n=6, σ répétitions sans objet : 1 répétition, appels LLM moyens 26.0, formats invalides moyens 25.0, durée moyenne 101.0917 s par texte.
+
+**llama3.2_3b** (`llama3.2:3b`) : succès 0.0 %, n=6, σ répétitions sans objet : 1 répétition, appels LLM moyens 50.6667, formats invalides moyens 0.1667, durée moyenne 299.915 s par texte.
+
 Sur 6 textes (un par chiffrement, 200 lettres, 1 répétition), `qwen3:4b` retrouve le clair pour : affine, cesar, substitution ; échec pour : autoclave, beaufort, vigenere. Les réponses sont contraintes par un schéma JSON (sorties structurées d'Ollama) : 0.0 format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées (repli moyen : 2.3333 par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** Le coût est élevé (≈ 32.6667 appels et 335.1783 s par texte sur CPU) contre une fraction de seconde pour les agents à règles.
+
+Sur 6 textes (un par chiffrement, 200 lettres, 1 répétition), `qwen3:0.6b` retrouve le clair pour : aucun ; échec pour : affine, autoclave, beaufort, cesar, substitution, vigenere. Les réponses sont contraintes par un schéma JSON (sorties structurées d'Ollama) : 25.0 format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées (repli moyen : 6.0 par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** Le coût est élevé (≈ 26.0 appels et 101.0917 s par texte sur CPU) contre une fraction de seconde pour les agents à règles.
+
+Sur 6 textes (un par chiffrement, 200 lettres, 1 répétition), `llama3.2:3b` retrouve le clair pour : aucun ; échec pour : affine, autoclave, beaufort, cesar, substitution, vigenere. Les réponses sont contraintes par un schéma JSON (sorties structurées d'Ollama) : 0.1667 format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées (repli moyen : 6.1667 par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** Le coût est élevé (≈ 50.6667 appels et 299.915 s par texte sur CPU) contre une fraction de seconde pour les agents à règles.
 
 
 | chiffrement (200 lettres) | `qwen3:4b` |
@@ -234,6 +255,28 @@ Sur 6 textes (un par chiffrement, 200 lettres, 1 répétition), `qwen3:4b` retro
 | autoclave | échec (0.0 %) |
 | substitution | réussi (100.0 %) |
 
+| chiffrement (200 lettres) | `qwen3:0.6b` |
+|---|---|
+| cesar | échec (0.0 %) |
+| affine | échec (0.0 %) |
+| vigenere | échec (0.0 %) |
+| beaufort | échec (0.0 %) |
+| autoclave | échec (0.0 %) |
+| substitution | échec (0.0 %) |
+
+| chiffrement (200 lettres) | `llama3.2:3b` |
+|---|---|
+| cesar | échec (0.0 %) |
+| affine | échec (0.0 %) |
+| vigenere | échec (0.0 %) |
+| beaufort | échec (0.0 %) |
+| autoclave | échec (0.0 %) |
+| substitution | échec (0.0 %) |
+
+
+**Étude d'ablation (textes de 200 lettres, mêmes chiffrements).** (a) outils seuls : 94.4 % ; (b) agents à règles, sans LLM : 95.6 % ; (c) agents avec LLM : `qwen3:4b` : 50.0 % (n=6, repli moyen 2.3333) ; `qwen3:0.6b` : 0.0 % (n=6, repli moyen 6.0) ; `llama3.2:3b` : 0.0 % (n=6, repli moyen 6.1667).
+
+**Conclusion sur l'apport mesuré des agents.** Dans nos mesures, les agents n'apportent **aucun gain de précision significatif** sur la baseline codée en dur (écart d'environ un point, dans les deux sens selon la longueur), et les modèles de langage testés (0,6 à 4 milliards de paramètres, sur CPU) **dégradent** le résultat : seul `qwen3:4b` réussit une partie des textes, les deux autres modèles échouent sur les six. L'apport des agents est ailleurs : traçabilité de chaque décision, explication rédigée, et tolérance aux pannes mesurée (§5.4). Ces mesures LLM portent sur 6 textes et 1 répétition par modèle, sans écart type : elles sont indicatives, pas statistiquement significatives.
 
 ## 5.4 Robustesse et pannes
 
@@ -376,7 +419,7 @@ On y voit le modèle enchaîner des appels d'outils valides, puis conclure « fi
 - **Résultat négatif assumé** : les agents ne battent pas la baseline en précision. Leur valeur : modularité, trace complète, explications, tolérance aux pannes, listes d'outils fermées.
 - **Corpus d'entraînement minuscule** (≈ 6,7 ko) : modèle de langue pauvre, entropie surestimée, textes de test qui se recouvrent aux grandes longueurs.
 - **Linguiste** : le seuil accepte parfois un clair en partie faux ; il suppose le français.
-- **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, un seul modèle, `qwen3:4b`) pour tenir sur un portable sans GPU ; le second modèle prévu (`llama3.2:3b`) n'a pas été évalué dans le temps imparti. Les mesures LLM sont donc indicatives.
+- **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, trois modèles : `qwen3:4b`, `qwen3:0.6b` et `llama3.2:3b`) pour tenir sur un portable sans GPU. Les mesures LLM sont donc indicatives.
 - Pas de comparaison avec un LLM seul sans outils (hors périmètre) ; les LLM de ≤ 8 Go calculent mal des fréquences, ce qui justifie la répartition « LLM décide / code calcule ».
 
 ## 6.1 Travaux liés

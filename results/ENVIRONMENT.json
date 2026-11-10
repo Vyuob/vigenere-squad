@@ -25,6 +25,18 @@
       "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
       "temperature": 0.0,
       "num_ctx": 4096
+    },
+    "qwen3_0.6b": {
+      "modele": "qwen3:0.6b",
+      "digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435",
+      "temperature": 0.0,
+      "num_ctx": 4096
+    },
+    "llama3.2_3b": {
+      "modele": "llama3.2:3b",
+      "digest": "a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72",
+      "temperature": 0.0,
+      "num_ctx": 4096
     }
   },
   "execution_llm": {
