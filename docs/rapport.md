@@ -6,6 +6,11 @@ geometry: margin=2.5cm
 fontsize: 11pt
 mainfont: "DejaVu Serif"
 toc: true
+toc-title: "Table des matières"
+lang: fr
+header-includes:
+  - \usepackage{fvextra}
+  - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
 ---
 
 # Résumé / Abstract
@@ -35,6 +40,66 @@ Quatre agents à rôles disjoints, un orchestrateur Python explicite (`orchestra
 **Listes d'outils fermées.** Un outil hors liste, ou des arguments hors bornes, sont refusés avant exécution. **Trace.** Chaque message LLM, appel d'outil, refus, panne et décision est écrit en JSONL.
 **Le LLM ne recopie jamais le texte** : les outils reçoivent le chiffré ou le candidat par liaison côté code, et le LLM ne voit que des statistiques et un aperçu.
 
+## 2.2 Protocole de messages
+
+À chaque pas, l'orchestrateur envoie à l'agent **un seul objet JSON** : son rôle, un contexte restreint (hypothèse courante, hypothèses déjà rejetées, graine), la liste des outils qu'il a le droit d'appeler avec leurs arguments, les observations déjà obtenues et une consigne de format. Le texte chiffré n'y figure jamais.
+L'agent répond par un objet JSON d'une des deux formes `{"action": "tool", "tool": ..., "args": {...}}` ou `{"action": "final", ...}`. La réponse est validée (Pydantic) ; un JSON invalide, une action inconnue ou un outil hors liste sont comptés, tracés et renvoyés à l'agent comme observation d'erreur (3 erreurs de format ou 6 erreurs au total, puis repli de l'orchestrateur).
+
+Avec Ollama, la réponse est de plus **contrainte par un schéma JSON** (sorties structurées) : la clé `action` est obligatoire et limitée à `tool` ou `final`. Ce schéma a été ajouté après un premier essai où `qwen3:4b` recopiait le message reçu au lieu d'y répondre (voir §6) :
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "tool",
+        "final"
+      ]
+    },
+    "tool": {
+      "type": "string"
+    },
+    "args": {
+      "type": "object"
+    },
+    "famille": {
+      "type": "string"
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "justification": {
+      "type": "string"
+    },
+    "commentaire": {
+      "type": "string"
+    },
+    "plausible": {
+      "type": "boolean"
+    },
+    "raison": {
+      "type": "string"
+    },
+    "explication": {
+      "type": "string"
+    },
+    "exercice": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+Si le LLM est injoignable ou dépasse le délai (300 s par appel, 60 s en mode rapide), l'agent échoue proprement (événement `llm_indisponible` dans la trace) et l'orchestrateur se replie ; il ne plante jamais.
+
 # 3. Outils
 
 - **Indice de coïncidence** $IC=\sum n_i(n_i-1)/N(N-1)$ : ≈ 0,078 en français monoalphabétique, ≈ 0,038 pour un texte aléatoire.
@@ -43,6 +108,35 @@ Quatre agents à rôles disjoints, un orchestrateur Python explicite (`orchestra
 - **Chi²** sur les fréquences du français : décalage de César, et par colonne pour Vigenère. **Beaufort** se ramène à Vigenère par la symétrie $25-C$.
 - **Autoclave** : Kasiski échoue (le flux de clé contient le clair) ; ascension de colline sur le mot-clé, scorée par quadrigrammes.
 - **Substitution** : recuit simulé / ascension de colline sur une permutation, avec 6 redémarrages, scorée par un modèle de langue 1–4-grammes interpolé (table 26⁴ en log₁₀).
+
+## 3.1 Catalogue d'outils et listes blanches
+
+Chaque agent ne peut appeler que les outils de sa liste ; les arguments sont validés (type, bornes, valeurs permises) **avant** exécution. Aucun outil n'accède au système de fichiers, au shell ni au réseau.
+
+
+```{=latex}
+\begingroup\scriptsize
+```
+
+| outil | genre | agents autorisés | arguments (bornes) | rôle |
+|---|---|---|---|---|
+| `indice_coincidence` | analyse | classifieur | — | IC du texte chiffré. |
+| `frequences` | analyse | classifieur | top ∈ [1, 26] | Lettres les plus fréquentes. |
+| `kasiski` | analyse | classifieur, cryptanalyste | max_len ∈ [2, 40] | Répétitions de trigrammes -> longueurs de clé candidates. |
+| `friedman` | analyse | cryptanalyste | — | Estimation de la longueur de clé (Friedman). |
+| `ic_colonnes` | analyse | cryptanalyste | longueur ∈ [1, 40] | IC moyen des colonnes pour une longueur donnée. |
+| `chi2_cesar` | attaque | cryptanalyste | — | Attaque César par chi² sur fréquences françaises. |
+| `force_brute_affine` | attaque | cryptanalyste | — | Essai des 312 clés affines. |
+| `attaque_vigenere` | attaque | cryptanalyste | longueur ∈ [1, 40], variante ∈ ['vigenere', 'beaufort'] | Vigenère/Beaufort : chi² par colonne, longueur donnée. |
+| `attaque_autoclave` | attaque | cryptanalyste | max_cle ∈ [1, 12] | Autokey : ascension de colline sur mot-clé. |
+| `attaque_substitution` | attaque | cryptanalyste | iterations ∈ [100, 8000], redemarrages ∈ [1, 10], seed ∈ [0, 1000000] | Substitution : recuit simulé sur quadrigrammes. |
+| `score_quadrigrammes` | verif | linguiste | — | Score de vraisemblance française + seuil. |
+| `generer_exercice` | exercice | pedagogue | type_chiffre ∈ ['cesar', 'affine', 'vigenere', 'beaufort', 'autoclave', 'substitution'], graine ∈ [0, 1000000] | Nouvel exercice du même type (énoncé + corrigé). |
+
+```{=latex}
+\endgroup
+```
+
 
 # 4. Protocole expérimental
 
@@ -81,10 +175,34 @@ Environnement de cette exécution : Python 3.13.18, Linux-6.18.44-fc-v338-x86_64
 
 (σ entre répétitions : 0.0031 ; 2.0533 hypothèses testées en moyenne ; 16.28 messages agent par texte ; 0.1589 s par texte.)
 
+**Synthèse des trois systèmes.**
+
+| système | succès | exactitude moyenne | durée moyenne par texte | messages agent par texte |
+|---|---|---|---|---|
+| (a) outils seuls | 86.7 % | 91.6 % | 0.1599 s | — |
+| (b) agents à règles | 85.6 % | 89.9 % | 0.1589 s | 16.28 |
+| (c) LLM `qwen3:4b` (n=6) | 50.0 % | 51.7 % | 335.1783 s | 32.6667 |
+
+
 ![Succès par chiffrement et longueur](../results/figures/succes_par_chiffre_longueur.png)
 
 **Lecture.** Au-delà de 500 lettres tout est cassé. Les chiffrements monoalphabétiques simples le sont dès 50 lettres. La substitution demande environ 200 lettres ou plus, ce qui est cohérent avec la distance d'unicité (§5.5).
 Les agents à règles font **moins bien** que la baseline sur Vigenère et Beaufort courts : choisir la longueur de clé par Kasiski + IC des colonnes est moins fiable que tester les longueurs 2–12 et garder le meilleur score.
+
+**Cellules où les agents diffèrent de la baseline (écart > 5 points) :**
+
+| cellule (chiffrement / longueur) | outils seuls | agents à règles | écart |
+|---|---|---|---|
+| vigenere / 50 | 80.0 % | 60.0 % | -20.0 pts |
+| vigenere / 100 | 100.0 % | 60.0 % | -40.0 pts |
+| vigenere / 200 | 100.0 % | 80.0 % | -20.0 pts |
+| beaufort / 50 | 40.0 % | 20.0 % | -20.0 pts |
+| beaufort / 100 | 80.0 % | 40.0 % | -40.0 pts |
+| autoclave / 50 | 20.0 % | 80.0 % | +60.0 pts |
+| substitution / 50 | 0.0 % | 6.7 % | +6.7 pts |
+| substitution / 100 | 13.3 % | 26.7 % | +13.3 pts |
+| substitution / 200 | 66.7 % | 93.3 % | +26.7 pts |
+
 
 ## 5.3 Avec LLM local
 
@@ -93,10 +211,48 @@ Les agents à règles font **moins bien** que la baseline sur Vigenère et Beauf
 Sur 6 textes (un par chiffrement, 200 lettres, 1 répétition), `qwen3:4b` retrouve le clair pour : affine, cesar, substitution ; échec pour : autoclave, beaufort, vigenere. Les réponses sont contraintes par un schéma JSON (sorties structurées d'Ollama) : 0.0 format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées (repli moyen : 2.3333 par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** Le coût est élevé (≈ 32.6667 appels et 335.1783 s par texte sur CPU) contre une fraction de seconde pour les agents à règles.
 
 
+| chiffrement (200 lettres) | `qwen3:4b` |
+|---|---|
+| cesar | réussi (100.0 %) |
+| affine | réussi (100.0 %) |
+| vigenere | échec (0.0 %) |
+| beaufort | échec (0.0 %) |
+| autoclave | échec (0.0 %) |
+| substitution | réussi (100.0 %) |
+
+
 ## 5.4 Robustesse et pannes
 
 - 5 % de lettres du chiffré remplacées : succès 48.7 %.
 - Clair anglais (le Linguiste est entraîné sur le français) : succès 55.6 %.
+
+**Détail du cas « 5 % de bruit »** (agents à règles) :
+
+| chiffrement | 50 | 100 | 200 | 500 | 1000 | global |
+|---|---|---|---|---|---|---|
+| affine | 100.0 % | 100.0 % | 100.0 % | 100.0 % | 20.0 % | 84.0 % |
+| autoclave | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+| beaufort | 0.0 % | 40.0 % | 80.0 % | 100.0 % | 20.0 % | 48.0 % |
+| cesar | 100.0 % | 100.0 % | 100.0 % | 100.0 % | 0.0 % | 80.0 % |
+| substitution | 0.0 % | 20.0 % | 40.0 % | 100.0 % | 20.0 % | 36.0 % |
+| vigenere | 40.0 % | 20.0 % | 60.0 % | 100.0 % | 0.0 % | 44.0 % |
+| **toutes** | 40.0 % | 46.7 % | 63.3 % | 83.3 % | 10.0 % | **48.7 %** |
+
+
+**Détail du cas « clair anglais »** (agents à règles ; l'ensemble d'entraînement du Linguiste est français) :
+
+| chiffrement | 200 | 500 | global |
+|---|---|---|---|
+| affine | 100.0 % | 100.0 % | 100.0 % |
+| autoclave | 100.0 % | 100.0 % | 100.0 % |
+| beaufort | 0.0 % | 0.0 % | 0.0 % |
+| cesar | 66.7 % | 100.0 % | 83.3 % |
+| substitution | 0.0 % | 0.0 % | 0.0 % |
+| vigenere | 33.3 % | 66.7 % | 50.0 % |
+| **toutes** | 50.0 % | 61.1 % | **55.6 %** |
+
+
+**Injection de pannes** :
 
 | taux de pannes | succès (LLM corrompu) | repli moyen | succès (outils en panne) |
 |---|---|---|---|
@@ -119,6 +275,88 @@ Le succès réel exige davantage de lettres que $U$ : l'unicité est une conditi
 
 Le Pédagogue produit des exercices valides dans 100.0 % des cas (n=60, vérifiés par déchiffrement avec la clé du corrigé).
 
+## 5.6 Étude de cas : une trace complète
+
+Trace réelle d'un texte chiffré par Vigenère (200 lettres, clé de 5), résolu par les agents à règles. Les « réponses » des agents sont ici produites par la politique à règles, selon le même protocole JSON que le LLM : l'orchestrateur ne voit pas la différence.
+
+
+```{=latex}
+\begingroup\scriptsize
+```
+
+| # | t (ms) | agent | type | contenu |
+|-:|--:|-----:|------:|----------------------------------------------|
+| 0 | 0 | orchestrateur | debut | {'longueur': 200} |
+| 1 | 0 | classifieur | llm | réponse : `{"action": "tool", "tool": "indice_coincidence", "args": {}}` |
+| 2 | 1 | classifieur | outil | outil `indice_coincidence` {} → {'ic': 0.0469, 'n': 200, 'ref_fr': 0.0778, 'ref_aleatoire': 0.0385} |
+| 3 | 1 | classifieur | llm | réponse : `{"action": "tool", "tool": "kasiski", "args": {}}` |
+| 4 | 1 | classifieur | outil | outil `kasiski` {} → {'n_repetitions': 7, 'longueurs_candidates': [{'longueur': 5, 'votes'… |
+| 5 | 1 | classifieur | llm | réponse : `{"action": "final", "famille": "polyalphabetique", "hypotheses": ["vigenere", "…` |
+| 6 | 1 | orchestrateur | decision | {'etape': 'classification', 'famille': 'polyalphabetique', 'hypotheses': ['vigenere', 'beaufort', 'autoclave'… |
+| 7 | 1 | cryptanalyste | llm | réponse : `{"action": "tool", "tool": "kasiski", "args": {"max_len": 12}}` |
+| 8 | 1 | cryptanalyste | outil | outil `kasiski` {'max_len': 12} → {'n_repetitions': 7, 'longueurs_candidates': [{'longueur': 5, 'votes'… |
+| 9 | 1 | cryptanalyste | llm | réponse : `{"action": "tool", "tool": "ic_colonnes", "args": {"longueur": 2}}` |
+| 10 | 2 | cryptanalyste | outil | outil `ic_colonnes` {'longueur': 2} → {'longueur': 2, 'ic_moyen': 0.048} |
+| 11 | 2 | cryptanalyste | llm | réponse : `{"action": "tool", "tool": "ic_colonnes", "args": {"longueur": 3}}` |
+| 12 | 2 | cryptanalyste | outil | outil `ic_colonnes` {'longueur': 3} → {'longueur': 3, 'ic_moyen': 0.0479} |
+| 13 | 2 | cryptanalyste | llm | réponse : `{"action": "tool", "tool": "ic_colonnes", "args": {"longueur": 5}}` |
+| 14 | 2 | cryptanalyste | outil | outil `ic_colonnes` {'longueur': 5} → {'longueur': 5, 'ic_moyen': 0.0849} |
+| 15 | 2 | cryptanalyste | llm | réponse : `{"action": "tool", "tool": "ic_colonnes", "args": {"longueur": 10}}` |
+| 16 | 2 | cryptanalyste | outil | outil `ic_colonnes` {'longueur': 10} → {'longueur': 10, 'ic_moyen': 0.0837} |
+| 17 | 2 | cryptanalyste | llm | réponse : `{"action": "tool", "tool": "attaque_vigenere", "args": {"longueur": 5, "variant…` |
+| 18 | 4 | cryptanalyste | outil | outil `attaque_vigenere` {'longueur': 5, 'variante': 'vigenere'} → {'cle': 'XMSLG', 'clair_apercu': 'ENTEURSACHERCHERDESMETHODESOUCHACUN… |
+| 19 | 5 | cryptanalyste | llm | réponse : `{"action": "final", "tool": "attaque_vigenere", "commentaire": "longueur 5, var…` |
+| 20 | 6 | linguiste | llm | réponse : `{"action": "tool", "tool": "score_quadrigrammes", "args": {}}` |
+| 21 | 8 | linguiste | outil | outil `score_quadrigrammes` {} → {'score': -0.8993, 'seuil': -1.6413, 'au_dessus_seuil': True, 'apercu… |
+| 22 | 8 | linguiste | llm | réponse : `{"action": "final", "plausible": true, "raison": "score -0.8993 > seuil -1.6413…` |
+| 23 | 9 | orchestrateur | decision | {'etape': 'verification', 'hypothese': 'vigenere', 'score': -0.899, 'accepte': True} |
+| 24 | 9 | pedagogue | llm | réponse : `{"action": "tool", "tool": "generer_exercice", "args": {"type_chiffre": "vigene…` |
+| 25 | 9 | pedagogue | outil | outil `generer_exercice` {'type_chiffre': 'vigenere', 'graine': … → {'type': 'vigenere', 'enonce': 'RGREXELYCKRKAHHEWCSPRMFOGRLMUFUTAUQCH… |
+| 26 | 9 | pedagogue | llm | réponse : `{"action": "final", "explication": "Le texte a été identifié comme un chiffreme…` |
+| 27 | 9 | orchestrateur | fin | {'statut': 'resolu', 'chiffrement': 'vigenere', 'duree_s': 0.01} |
+
+```{=latex}
+\endgroup
+```
+
+
+On y lit : (1) le Classifieur mesure l'IC (0,047, proche de l'aléatoire) et Kasiski (7 répétitions) et conclut « polyalphabétique » ; (2) le Cryptanalyste teste les longueurs candidates et retient celle dont l'IC par colonne est élevé ; (3) le Linguiste compare le score de quadrigrammes au seuil ; (4) l'orchestrateur accepte ; (5) le Pédagogue génère un exercice. Chaque étape est rejouable avec `vigenere-squad rejouer <trace>`.
+
+**Trace avec un vrai LLM** (`qwen3:4b`, Beaufort, 200 lettres, début de la trace) :
+
+
+```{=latex}
+\begingroup\scriptsize
+```
+
+| # | t (ms) | agent | type | contenu |
+|-:|--:|-----:|------:|----------------------------------------------|
+| 0 | 7 | orchestrateur | debut | {'longueur': 200} |
+| 1 | 5225 | classifieur | llm | réponse : `{   "action": "tool",   "tool": "indice_coincidence",   "args": {} }` |
+| 2 | 5227 | classifieur | outil | outil `indice_coincidence` {} → {'ic': 0.0435, 'n': 200, 'ref_fr': 0.0778, 'ref_aleatoire': 0.0385} |
+| 3 | 13194 | classifieur | llm | réponse : `{   "action": "tool",   "tool": "frequences",   "args": {     "top": 5   } }` |
+| 4 | 13200 | classifieur | outil | outil `frequences` {'top': 5} → {'top': {'Z': 0.08, 'J': 0.075, 'T': 0.07, 'D': 0.07, 'B': 0.065}} |
+| 5 | 38258 | classifieur | llm | réponse : `{   "action": "final",   "famille": "polyalphabetique",   "hypotheses": [     "…` |
+| 6 | 38260 | orchestrateur | decision | {'etape': 'classification', 'famille': 'polyalphabetique', 'hypotheses': ['vigenere', 'beaufort', 'autoclave'… |
+| 7 | 52706 | cryptanalyste | llm | réponse : `{   "action": "tool",   "tool": "friedman",   "args": {} }` |
+| 8 | 52708 | cryptanalyste | outil | outil `friedman` {} → {'longueur_estimee': 7.53} |
+| 9 | 60384 | cryptanalyste | llm | réponse : `{   "action": "tool",   "tool": "kasiski",   "args": {     "max_len": 40   } }` |
+| 10 | 60386 | cryptanalyste | outil | outil `kasiski` {'max_len': 40} → {'n_repetitions': 3, 'longueurs_candidates': [{'longueur': 2, 'votes'… |
+| 11 | 69384 | cryptanalyste | llm | réponse : `{   "action": "tool",   "tool": "ic_colonnes",   "args": {     "longueur": 8   …` |
+| 12 | 69387 | cryptanalyste | outil | outil `ic_colonnes` {'longueur': 8} → {'longueur': 8, 'ic_moyen': 0.0733} |
+| 13 | 77117 | cryptanalyste | llm | réponse : `{   "action": "tool",   "tool": "ic_colonnes",   "args": {     "longueur": 8   …` |
+| 14 | 77119 | cryptanalyste | outil | outil `ic_colonnes` {'longueur': 8} → {'longueur': 8, 'ic_moyen': 0.0733} |
+| 15 | 90097 | cryptanalyste | llm | réponse : `{   "action": "final",   "tool": "attaque_vigenere",   "commentaire": "La longu…` |
+| 16 | 90098 | orchestrateur | repli | {'cible': 'cryptanalyste', 'hypothese': 'vigenere', 'action': 'hypothèse ignorée'} |
+| 17 | 106518 | cryptanalyste | llm | réponse : `{   "action": "tool",   "tool": "friedman",   "args": {} }` |
+
+```{=latex}
+\endgroup
+```
+
+
+On y voit le modèle enchaîner des appels d'outils valides, puis conclure « final » en citant une attaque qu'il n'a jamais exécutée : l'orchestrateur le détecte et ignore l'hypothèse (événement `repli`). C'est le comportement attendu de la séparation « le LLM décide, le code vérifie ».
+
 # 6. Discussion et limites
 
 - **Résultat négatif assumé** : les agents ne battent pas la baseline en précision. Leur valeur : modularité, trace complète, explications, tolérance aux pannes, listes d'outils fermées.
@@ -127,9 +365,31 @@ Le Pédagogue produit des exercices valides dans 100.0 % des cas (n=60, vérifi�
 - **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, un seul modèle, `qwen3:4b`) pour tenir sur un portable sans GPU ; le second modèle prévu (`llama3.2:3b`) n'a pas été évalué dans le temps imparti. Les mesures LLM sont donc indicatives.
 - Pas de comparaison avec un LLM seul sans outils (hors périmètre) ; les LLM de ≤ 8 Go calculent mal des fréquences, ce qui justifie la répartition « LLM décide / code calcule ».
 
+## 6.1 Travaux liés
+
+Les outils reprennent des méthodes classiques : examen de Kasiski (1863) pour la longueur de clé, indice de coïncidence et test de Friedman (1922), distance d'unicité de Shannon (1949), recuit simulé de Kirkpatrick et al. (1983) pour la substitution. La nouveauté ne se situe pas dans ces algorithmes, mais dans leur **orchestration** : des agents à rôles disjoints, des outils à listes fermées, une trace complète et un contrôle par le code des conclusions du LLM.
+
+## 6.2 Enseignements sur les LLM locaux
+
+- Un petit modèle (0,6 milliard de paramètres) ne suit pas le protocole de façon fiable ; un modèle de 4 milliards le suit si la sortie est contrainte par un schéma, mais raisonne mal sur les chiffrements polyalphabétiques.
+- Sans schéma, `qwen3:4b` a recopié le message reçu au lieu d'y répondre : chaque réponse invalide coûtait environ 60 s sur CPU et le test devenait impraticable. Les sorties structurées d'Ollama règlent le problème de format, pas celui du raisonnement.
+- Un délai maximal par appel et un repli propre sont indispensables : sur un processeur partagé (CI), un appel peut dépasser 60 s.
+- **Boucles** : sur les traces de `qwen3:4b`, le Cryptanalyste rappelle parfois le même outil (jusqu'à 13 fois de suite `ic_colonnes` avec la même longueur) jusqu'à la limite de 14 pas, ce qui déclenche le repli ; l'outil correct (par exemple `force_brute_affine` pour le texte affine) a parfois été appelé trop tard.
+- **Explications peu fiables** : le Pédagogue produit des phrases fausses (« clé de 20 caractères » pour une permutation de 26 lettres, « substitution polyalphabétique »), et n'appelle pas l'outil `generer_exercice` : l'exercice proposé n'est alors pas vérifié par le code, contrairement à la politique à règles (100 % d'exercices valides). C'est une limite connue de la version LLM.
+- **Format des hypothèses** : dans un cas, le Classifieur a recopié le gabarit du prompt (`monoalphabetique|polyalphabetique`) au lieu de choisir une famille.
+- Le coût est très asymétrique : environ 335 s par texte avec le LLM contre une fraction de seconde pour les règles, pour une précision inférieure.
+
+## 6.3 Perspectives
+
+Évaluer plus de textes et de répétitions avec le LLM ; tester d'autres modèles locaux et des tailles de contexte différentes ; élargir le corpus d'entraînement du Linguiste (plusieurs langues) ; remplacer la politique à règles du Cryptanalyste par un LLM guidé par des exemples (few-shot) ; ajouter des chiffrements (Playfair, Hill, transposition).
+
+## 6.4 Usage responsable
+
+Le système ne casse que des chiffrements historiques, sans valeur de sécurité aujourd'hui, sur des textes de test. Il n'envoie aucune donnée hors de la machine locale. Les exercices générés servent à l'apprentissage de la cryptanalyse.
+
 # 7. Sécurité
 
-Modèle de menaces STRIDE dans `docs/THREAT_MODEL.md` : injection via le texte chiffré (le texte n'entre pas dans le prompt), clair inventé par le LLM (le code a le dernier mot), boucle infinie (bornes de pas et d'essais), élévation de privilèges (listes blanches, aucun outil shell/fichier/réseau), fuite de données (réseau local uniquement, gitleaks en CI).
+Modèle de menaces STRIDE complet dans `docs/THREAT_MODEL.md` (table menace / scénario / contre-mesure / test) : injection via le texte chiffré (le texte n'entre pas dans le prompt), clair inventé par le LLM (le code a le dernier mot), boucle infinie (bornes de pas et d'essais), élévation de privilèges (listes blanches, aucun outil shell/fichier/réseau), fuite de données (réseau local uniquement, gitleaks en CI).
 
 # 8. Reproductibilité
 
@@ -138,6 +398,130 @@ Modèle de menaces STRIDE dans `docs/THREAT_MODEL.md` : injection via le texte c
 # 9. Usage de l'IA
 
 Voir `AI_USAGE.md` : conception et code réalisés avec l'assistance de Claude (Anthropic), sous la direction et la relecture de l'auteur ; résultats issus uniquement de l'exécution du dépôt.
+
+# Annexe A — Prompts des agents (version 1.0)
+
+Les prompts sont versionnés dans `src/vigenere_squad/prompts/` ; leurs empreintes SHA-256 figurent dans `results/ENVIRONMENT.json`.
+
+## A.1 Prompt du classifieur
+
+> Tu es le CLASSIFIEUR d une équipe de cryptanalystes. Ton rôle : déterminer la famille du chiffrement d un texte\
+> et ordonner les hypothèses à tester.\
+> Repères : l indice de coïncidence (IC) vaut ≈0,078 pour du français chiffré par substitution simple\
+> (César, affine, substitution) et ≈0,038–0,050 pour un chiffrement polyalphabétique (Vigenère, Beaufort, autoclave).\
+> Si peu de répétitions de trigrammes (Kasiski) malgré un IC bas, privilégie « autoclave ».\
+> Hypothèses autorisées : cesar, affine, substitution, vigenere, beaufort, autoclave.\
+> Format final : {"action":"final","famille":"monoalphabetique|polyalphabetique","hypotheses":[...ordre de test...],"justification":"une phrase"}\
+> Tu réponds UNIQUEMENT par un objet JSON. Deux formes possibles :\
+> - appel d outil : {"action":"tool","tool":"<nom>","args":{...}}\
+> - réponse finale : voir le format de ton rôle.\
+> Tu ne peux appeler QUE les outils listés. Le texte à analyser est fourni automatiquement aux outils : ne le recopie jamais. Un outil appelé deux fois avec les mêmes arguments donne le même résultat : n en refais pas l appel. Les nombres viennent des outils, jamais de toi.\
+
+## A.2 Prompt du cryptanalyste
+
+> Tu es le CRYPTANALYSTE. On te donne UNE hypothèse de chiffrement (contexte.hypothese). Lance l attaque adaptée :\
+> cesar -> chi2_cesar ; affine -> force_brute_affine ; substitution -> attaque_substitution ; autoclave -> attaque_autoclave ;\
+> vigenere/beaufort -> kasiski (puis ic_colonnes sur chaque longueur candidate) puis attaque_vigenere(longueur, variante)\
+> avec la PLUS PETITE longueur dont l IC moyen des colonnes est proche du meilleur (≥ 0,06 attendu).\
+> Si kasiski ne donne rien (texte court), essaie les longueurs 2 à 8 avec ic_colonnes.\
+> Format final : {"action":"final","tool":"<dernier outil d attaque>","commentaire":"une phrase"}\
+> Le texte déchiffré est récupéré automatiquement depuis le résultat de l outil.\
+> Tu réponds UNIQUEMENT par un objet JSON. Deux formes possibles :\
+> - appel d outil : {"action":"tool","tool":"<nom>","args":{...}}\
+> - réponse finale : voir le format de ton rôle.\
+> Tu ne peux appeler QUE les outils listés. Le texte à analyser est fourni automatiquement aux outils : ne le recopie jamais. Un outil appelé deux fois avec les mêmes arguments donne le même résultat : n en refais pas l appel. Les nombres viennent des outils, jamais de toi.\
+
+## A.3 Prompt du linguiste
+
+> Tu es le LINGUISTE. On te soumet un texte déchiffré candidat. Appelle score_quadrigrammes ; le résultat contient un seuil et\
+> un aperçu des 80 premières lettres. Dis si le texte est du français plausible (mots reconnaissables, score au-dessus du seuil).\
+> Rejette si le score est sous le seuil.\
+> Format final : {"action":"final","plausible":true|false,"raison":"une phrase"}\
+> Tu réponds UNIQUEMENT par un objet JSON. Deux formes possibles :\
+> - appel d outil : {"action":"tool","tool":"<nom>","args":{...}}\
+> - réponse finale : voir le format de ton rôle.\
+> Tu ne peux appeler QUE les outils listés. Le texte à analyser est fourni automatiquement aux outils : ne le recopie jamais. Un outil appelé deux fois avec les mêmes arguments donne le même résultat : n en refais pas l appel. Les nombres viennent des outils, jamais de toi.\
+
+## A.4 Prompt du pedagogue
+
+> Tu es le PÉDAGOGUE. À partir du résumé de l enquête (contexte), rédige en français, en 3 phrases maximum, une explication\
+> destinée à un étudiant : comment on a reconnu le chiffrement et comment la clé a été trouvée. Appelle ensuite generer_exercice\
+> (même type de chiffre) pour proposer un exercice. Ne divulgue pas de clé inventée : utilise celle du contexte.\
+> Format final : {"action":"final","explication":"...","exercice":"<énoncé renvoyé par l outil>"}\
+> Tu réponds UNIQUEMENT par un objet JSON. Deux formes possibles :\
+> - appel d outil : {"action":"tool","tool":"<nom>","args":{...}}\
+> - réponse finale : voir le format de ton rôle.\
+> Tu ne peux appeler QUE les outils listés. Le texte à analyser est fourni automatiquement aux outils : ne le recopie jamais. Un outil appelé deux fois avec les mêmes arguments donne le même résultat : n en refais pas l appel. Les nombres viennent des outils, jamais de toi.\
+
+
+# Annexe B — Configuration de l'expérience (`config/experiment.yaml`)
+
+```yaml
+# Configuration unique de l'expérience : tout paramètre qui influence un résultat est ici.
+seed: 42
+corpus:
+  langue: fr
+  longueurs: [50, 100, 200, 500, 1000]
+  par_cellule: 5            # 6 chiffrements x 5 longueurs x 5 = 150 échantillons
+  repetitions: 3            # >= 3 répétitions par mesure (graines seed, seed+1, seed+2)
+robustesse:
+  bruit_frappe: 0.05        # 5 % de lettres du chiffré remplacées
+  anglais: true             # texte clair anglais (le linguiste est entraîné sur le français)
+pannes:
+  p_llm: [0.0, 0.1, 0.2, 0.3]   # proportion de réponses LLM corrompues
+  p_outil: [0.0, 0.1, 0.2, 0.3] # proportion d'appels d'outil en panne
+llm:
+  temperature: 0.0
+  seed: 42
+  num_predict: 512          # nombre max de jetons générés par réponse (les réponses JSON attendues sont courtes)
+  timeout_s: 300            # délai max par appel LLM ; dépassé -> l'agent échoue proprement et l'orchestrateur se replie sur les outils
+  num_ctx: 4096             # 8 Go : contexte 4096 (cf. annexe A)
+  modeles:                  # `digest` est relevé automatiquement via l'API Ollama et écrit dans results/ENVIRONMENT.json
+    principal: {etiquette: "qwen3:4b", ollama: "qwen3:4b"}
+    second:    {etiquette: "llama3.2:3b", ollama: "llama3.2:3b"}
+  sous_ensemble: {longueurs: [200], par_cellule: 2}   # 6 chiffrements x 1 longueur x 2 = 12 échantillons
+  repetitions: 3
+profil_small:                # `make reproduce-small` (CI) : petit modèle, 1 répétition
+  modele: "qwen3:0.6b"
+  timeout_s: 60
+  sous_ensemble: {longueurs: [200], par_cellule: 1}
+  repetitions: 1
+  taille_corpus: {longueurs: [100, 500], par_cellule: 2}
+succes_seuil_exactitude: 0.95
+```
+
+# Annexe C — Reproduire pas à pas
+
+**Linux / macOS** (avec `make`) :
+
+```bash
+uv sync --frozen --extra dev
+make test
+make models && make reproduce-small   # rapide
+make reproduce                        # complet (plusieurs heures sur CPU)
+```
+
+**Windows** (sans `make`, PowerShell) :
+
+```powershell
+uv sync --frozen --extra dev
+uv run --frozen pytest
+uv run --frozen python scripts/reproduce.py --small
+uv run --frozen python -m vigenere_squad.evaluate --llm-seul --modeles qwen3:4b --par-cellule 1 --repetitions 1 --timeout 240
+```
+
+Pour reproduire uniquement les mesures sans LLM : `uv run --frozen python scripts/reproduce.py --no-llm`. Vérification d'intégrité : `uv run --frozen python scripts/hashes.py --check` puis `minisign -Vm SHA256SUMS -p minisign.pub`.
+
+# Annexe D — Glossaire
+
+- **IC** : indice de coïncidence, probabilité que deux lettres tirées au hasard dans le texte soient identiques.
+- **Kasiski** : méthode qui déduit la longueur de la clé des distances entre séquences répétées.
+- **Autoclave (autokey)** : Vigenère dont la clé se prolonge avec le texte clair lui-même.
+- **Beaufort** : variante de Vigenère où l'on soustrait le texte à la clé.
+- **Quadrigramme** : suite de quatre lettres ; leur fréquence mesure la vraisemblance d'un texte.
+- **Repli** : décision de l'orchestrateur d'abandonner une hypothèse ou un agent défaillant.
+- **Trace** : journal JSONL de tous les messages, appels d'outils et décisions.
+- **Schéma JSON** : description de la forme exacte attendue pour la réponse d'un LLM.
 
 # Références
 

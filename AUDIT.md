@@ -22,3 +22,4 @@ Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est
 - Durée et mémoire de `make reproduce` avec LLM : à relever (`meta.duree_totale_s`, `meta.pic_memoire_mo`) ; non mesurées par l'auteur de l'audit.
 - DOI Zenodo, signature de `SHA256SUMS`, page GitHub Pages, exécution CI sur le tag : à effectuer depuis le compte GitHub.
 - Pas de vidéo de démonstration.
+- **Limites observées avec le LLM** (`traces/llm_qwen3_4b/`) : boucles d'appels d'outil jusqu'à la limite de pas, explications du Pédagogue parfois fausses, exercices non vérifiés lorsque l'outil `generer_exercice` n'est pas appelé, gabarit du prompt recopié par le Classifieur dans un cas.

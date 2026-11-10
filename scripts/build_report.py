@@ -33,6 +33,96 @@ if "statut" not in llm:
                    f"{v_.get('format_invalide_moyen')} format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées "
                    f"(repli moyen : {v_.get('repli_moyen')} par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** "
                    f"Le coût est élevé (≈ {v_.get('appels_llm_moyen')} appels et {v_.get('duree_moyenne_s')} s par texte sur CPU) contre une fraction de seconde pour les agents à règles.\n")
+
+# ---------- contenu additionnel (tout est lu dans le dépôt : aucun chiffre saisi à la main) ----------
+import sys
+sys.path.insert(0, str(R / "src"))
+from vigenere_squad.llm import SCHEMA_REPONSE  # noqa: E402
+from vigenere_squad.tools.registry import ALLOWLIST, OUTILS  # noqa: E402
+
+
+def _cell(x):
+    return str(x).replace("|", "/").replace("\n", " ")
+
+
+def _court(x, n=95):
+    x = _cell(x)
+    return x if len(x) <= n else x[: n - 1] + "…"
+
+
+def _resume_evt(e):
+    t = e.get("type")
+    if t == "llm":
+        return "réponse : `" + _court(e.get("reponse", "").replace("`", "'"), 80) + "`"
+    if t == "outil":
+        return f"outil `{e.get('outil')}` {_court(e.get('args'), 40)} → " + _court(e.get("resultat"), 70)
+    if t in ("decision", "repli", "fin", "debut", "erreur_format", "llm_indisponible", "outil_refuse", "outil_panne"):
+        return _court({k: v for k, v in e.items() if k not in ("seq", "t_ms", "agent", "type", "run_id")}, 110)
+    return _court(e, 100)
+
+
+def trace_table(chemin, n=40):
+    f = R / chemin
+    if not f.is_file():
+        return "*(trace non incluse dans cette copie du dépôt)*\n"
+    evts = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()][:n]
+    out = "| # | t (ms) | agent | type | contenu |\n|-:|--:|-----:|------:|----------------------------------------------|\n"
+    for e in evts:
+        out += f"| {e['seq']} | {e['t_ms']:.0f} | {e['agent']} | {e['type']} | {_resume_evt(e)} |\n"
+    return out
+
+
+def read_txt(rel):
+    f = R / rel
+    return f.read_text(encoding="utf-8") if f.is_file() else ""
+
+
+outils_tab = "| outil | genre | agents autorisés | arguments (bornes) | rôle |\n|---|---|---|---|---|\n"
+for nom, (_, genre, desc, spec) in OUTILS.items():
+    ags = ", ".join(a for a, l in ALLOWLIST.items() if nom in l)
+    sp = ", ".join(f"{a} ∈ {v}" if isinstance(v, list) else f"{a} ∈ [{v[1]}, {v[2]}]" for a, v in spec.items()) or "—"
+    outils_tab += f"| `{nom}` | {genre} | {ags} | {sp} | {desc} |\n"
+
+recap = "| système | succès | exactitude moyenne | durée moyenne par texte | messages agent par texte |\n|---|---|---|---|---|\n"
+recap += f"| (a) outils seuls | {P(O['succes_global'])} | {P(O['exactitude_moyenne'])} | {O['duree_moyenne_s']} s | — |\n"
+recap += f"| (b) agents à règles | {P(A['succes_global'])} | {P(A['exactitude_moyenne'])} | {A['duree_moyenne_s']} s | {A['appels_llm_moyen']} |\n"
+for k_, v_ in (m.get("llm") or {}).items():
+    if isinstance(v_, dict) and v_.get("n"):
+        recap += f"| (c) LLM `{v_['modele']}` (n={v_['n']}) | {P(v_['succes_global'])} | {P(v_['exactitude_moyenne'])} | {v_['duree_moyenne_s']} s | {v_['appels_llm_moyen']} |\n"
+
+delta = "| cellule (chiffrement / longueur) | outils seuls | agents à règles | écart |\n|---|---|---|---|\n"
+nb_diff = 0
+for c_, va in A["par_cellule"].items():
+    vo = O["par_cellule"].get(c_)
+    if vo is not None and abs(va - vo) > 0.05:
+        lib = c_.replace("|", " / ")
+        delta += f"| {lib} | {P(vo)} | {P(va)} | {100 * (va - vo):+.1f} pts |\n"; nb_diff += 1
+if nb_diff == 0:
+    delta = "*(aucune cellule ne diffère de plus de 5 points)*\n"
+
+bruit_tab = tab(m["robustesse"]["bruit_frappe"])
+ang = m["robustesse"].get("anglais")
+ang_tab = tab(ang) if ang else ""
+llm_cells = ""
+for k_, v_ in (m.get("llm") or {}).items():
+    if isinstance(v_, dict) and v_.get("n"):
+        llm_cells += f"\n| chiffrement (200 lettres) | `{v_['modele']}` |\n|---|---|\n" + "".join(f"| {c_.split('|')[0]} | {'réussi' if x >= 0.5 else 'échec'} ({P(x)}) |\n" for c_, x in v_["par_cellule"].items())
+
+schema_txt = json.dumps(SCHEMA_REPONSE, indent=2, ensure_ascii=False)
+prompts_txt = ""
+for r_ in ("classifieur", "cryptanalyste", "linguiste", "pedagogue"):
+    corps = read_txt(f"src/vigenere_squad/prompts/{r_}.md").strip().splitlines()
+    prompts_txt += f"\n## A.{('classifieur','cryptanalyste','linguiste','pedagogue').index(r_) + 1} Prompt du {r_}\n\n" + "\n".join("> " + l + "\\" for l in corps[1:]) + "\n"
+config_txt = read_txt("config/experiment.yaml").strip()
+stride_txt = read_txt("docs/THREAT_MODEL.md").split("\n", 2)[-1].strip()
+def petit(t):
+    return "\n```{=latex}\n\\begingroup\\scriptsize\n```\n\n" + t + "\n```{=latex}\n\\endgroup\n```\n"
+
+
+trace_regles = petit(trace_table("traces/scripted/vigenere-200-0-r0.jsonl", 40))
+trace_llm = petit(trace_table("traces/llm_qwen3_4b/beaufort-200-0-r0.jsonl", 18))
+outils_tab = petit(outils_tab)
+
 exe = env.get("execution_llm")
 exe_txt = (f" Étape LLM exécutée sur : {exe['plateforme']}, Python {exe['python']}, {exe['cpu_count']} CPU, {exe['ram_go']} Go de RAM." if exe else "")
 sh = m["shannon"]; k = m["kasiski"]
@@ -44,6 +134,11 @@ geometry: margin=2.5cm
 fontsize: 11pt
 mainfont: "DejaVu Serif"
 toc: true
+toc-title: "Table des matières"
+lang: fr
+header-includes:
+  - \\usepackage{{fvextra}}
+  - \\DefineVerbatimEnvironment{{Highlighting}}{{Verbatim}}{{breaklines,commandchars=\\\\\\{{\\}}}}
 ---
 
 # Résumé / Abstract
@@ -73,6 +168,19 @@ Quatre agents à rôles disjoints, un orchestrateur Python explicite (`orchestra
 **Listes d'outils fermées.** Un outil hors liste, ou des arguments hors bornes, sont refusés avant exécution. **Trace.** Chaque message LLM, appel d'outil, refus, panne et décision est écrit en JSONL.
 **Le LLM ne recopie jamais le texte** : les outils reçoivent le chiffré ou le candidat par liaison côté code, et le LLM ne voit que des statistiques et un aperçu.
 
+## 2.2 Protocole de messages
+
+À chaque pas, l'orchestrateur envoie à l'agent **un seul objet JSON** : son rôle, un contexte restreint (hypothèse courante, hypothèses déjà rejetées, graine), la liste des outils qu'il a le droit d'appeler avec leurs arguments, les observations déjà obtenues et une consigne de format. Le texte chiffré n'y figure jamais.
+L'agent répond par un objet JSON d'une des deux formes `{{"action": "tool", "tool": ..., "args": {{...}}}}` ou `{{"action": "final", ...}}`. La réponse est validée (Pydantic) ; un JSON invalide, une action inconnue ou un outil hors liste sont comptés, tracés et renvoyés à l'agent comme observation d'erreur (3 erreurs de format ou 6 erreurs au total, puis repli de l'orchestrateur).
+
+Avec Ollama, la réponse est de plus **contrainte par un schéma JSON** (sorties structurées) : la clé `action` est obligatoire et limitée à `tool` ou `final`. Ce schéma a été ajouté après un premier essai où `qwen3:4b` recopiait le message reçu au lieu d'y répondre (voir §6) :
+
+```json
+{schema_txt}
+```
+
+Si le LLM est injoignable ou dépasse le délai (300 s par appel, 60 s en mode rapide), l'agent échoue proprement (événement `llm_indisponible` dans la trace) et l'orchestrateur se replie ; il ne plante jamais.
+
 # 3. Outils
 
 - **Indice de coïncidence** $IC=\\sum n_i(n_i-1)/N(N-1)$ : ≈ 0,078 en français monoalphabétique, ≈ 0,038 pour un texte aléatoire.
@@ -81,6 +189,12 @@ Quatre agents à rôles disjoints, un orchestrateur Python explicite (`orchestra
 - **Chi²** sur les fréquences du français : décalage de César, et par colonne pour Vigenère. **Beaufort** se ramène à Vigenère par la symétrie $25-C$.
 - **Autoclave** : Kasiski échoue (le flux de clé contient le clair) ; ascension de colline sur le mot-clé, scorée par quadrigrammes.
 - **Substitution** : recuit simulé / ascension de colline sur une permutation, avec 6 redémarrages, scorée par un modèle de langue 1–4-grammes interpolé (table 26⁴ en log₁₀).
+
+## 3.1 Catalogue d'outils et listes blanches
+
+Chaque agent ne peut appeler que les outils de sa liste ; les arguments sont validés (type, bornes, valeurs permises) **avant** exécution. Aucun outil n'accède au système de fichiers, au shell ni au réseau.
+
+{outils_tab}
 
 # 4. Protocole expérimental
 
@@ -101,19 +215,38 @@ Environnement de cette exécution : Python {env['python']}, {env['plateforme']},
 {tab(A)}
 (σ entre répétitions : {A['ecart_type_repetitions']} ; {A['iterations_moyen']} hypothèses testées en moyenne ; {A['appels_llm_moyen']} messages agent par texte ; {A['duree_moyenne_s']} s par texte.)
 
+**Synthèse des trois systèmes.**
+
+{recap}
+
 ![Succès par chiffrement et longueur](../results/figures/succes_par_chiffre_longueur.png)
 
 **Lecture.** Au-delà de 500 lettres tout est cassé. Les chiffrements monoalphabétiques simples le sont dès 50 lettres. La substitution demande environ 200 lettres ou plus, ce qui est cohérent avec la distance d'unicité (§5.5).
 Les agents à règles font **moins bien** que la baseline sur Vigenère et Beaufort courts : choisir la longueur de clé par Kasiski + IC des colonnes est moins fiable que tester les longueurs 2–12 et garder le meilleur score.
 
+**Cellules où les agents diffèrent de la baseline (écart > 5 points) :**
+
+{delta}
+
 ## 5.3 Avec LLM local
 
 {tl}
+{llm_cells}
 
 ## 5.4 Robustesse et pannes
 
 - 5 % de lettres du chiffré remplacées : succès {P(m['robustesse']['bruit_frappe']['succes_global'])}.
 - Clair anglais (le Linguiste est entraîné sur le français) : succès {P(m['robustesse'].get('anglais', {}).get('succes_global'))}.
+
+**Détail du cas « 5 % de bruit »** (agents à règles) :
+
+{bruit_tab}
+
+**Détail du cas « clair anglais »** (agents à règles ; l'ensemble d'entraînement du Linguiste est français) :
+
+{ang_tab}
+
+**Injection de pannes** :
 
 {tp}
 ![Robustesse aux pannes](../results/figures/pannes.png){{width=60%}}
@@ -130,6 +263,20 @@ Le succès réel exige davantage de lettres que $U$ : l'unicité est une conditi
 
 Le Pédagogue produit des exercices valides dans {P(m['exercices_pedagogue']['taux'])} des cas (n={m['exercices_pedagogue']['n']}, vérifiés par déchiffrement avec la clé du corrigé).
 
+## 5.6 Étude de cas : une trace complète
+
+Trace réelle d'un texte chiffré par Vigenère (200 lettres, clé de 5), résolu par les agents à règles. Les « réponses » des agents sont ici produites par la politique à règles, selon le même protocole JSON que le LLM : l'orchestrateur ne voit pas la différence.
+
+{trace_regles}
+
+On y lit : (1) le Classifieur mesure l'IC (0,047, proche de l'aléatoire) et Kasiski (7 répétitions) et conclut « polyalphabétique » ; (2) le Cryptanalyste teste les longueurs candidates et retient celle dont l'IC par colonne est élevé ; (3) le Linguiste compare le score de quadrigrammes au seuil ; (4) l'orchestrateur accepte ; (5) le Pédagogue génère un exercice. Chaque étape est rejouable avec `vigenere-squad rejouer <trace>`.
+
+**Trace avec un vrai LLM** (`qwen3:4b`, Beaufort, 200 lettres, début de la trace) :
+
+{trace_llm}
+
+On y voit le modèle enchaîner des appels d'outils valides, puis conclure « final » en citant une attaque qu'il n'a jamais exécutée : l'orchestrateur le détecte et ignore l'hypothèse (événement `repli`). C'est le comportement attendu de la séparation « le LLM décide, le code vérifie ».
+
 # 6. Discussion et limites
 
 - **Résultat négatif assumé** : les agents ne battent pas la baseline en précision. Leur valeur : modularité, trace complète, explications, tolérance aux pannes, listes d'outils fermées.
@@ -138,9 +285,31 @@ Le Pédagogue produit des exercices valides dans {P(m['exercices_pedagogue']['ta
 - **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, un seul modèle, `qwen3:4b`) pour tenir sur un portable sans GPU ; le second modèle prévu (`llama3.2:3b`) n'a pas été évalué dans le temps imparti. Les mesures LLM sont donc indicatives.
 - Pas de comparaison avec un LLM seul sans outils (hors périmètre) ; les LLM de ≤ 8 Go calculent mal des fréquences, ce qui justifie la répartition « LLM décide / code calcule ».
 
+## 6.1 Travaux liés
+
+Les outils reprennent des méthodes classiques : examen de Kasiski (1863) pour la longueur de clé, indice de coïncidence et test de Friedman (1922), distance d'unicité de Shannon (1949), recuit simulé de Kirkpatrick et al. (1983) pour la substitution. La nouveauté ne se situe pas dans ces algorithmes, mais dans leur **orchestration** : des agents à rôles disjoints, des outils à listes fermées, une trace complète et un contrôle par le code des conclusions du LLM.
+
+## 6.2 Enseignements sur les LLM locaux
+
+- Un petit modèle (0,6 milliard de paramètres) ne suit pas le protocole de façon fiable ; un modèle de 4 milliards le suit si la sortie est contrainte par un schéma, mais raisonne mal sur les chiffrements polyalphabétiques.
+- Sans schéma, `qwen3:4b` a recopié le message reçu au lieu d'y répondre : chaque réponse invalide coûtait environ 60 s sur CPU et le test devenait impraticable. Les sorties structurées d'Ollama règlent le problème de format, pas celui du raisonnement.
+- Un délai maximal par appel et un repli propre sont indispensables : sur un processeur partagé (CI), un appel peut dépasser 60 s.
+- **Boucles** : sur les traces de `qwen3:4b`, le Cryptanalyste rappelle parfois le même outil (jusqu'à 13 fois de suite `ic_colonnes` avec la même longueur) jusqu'à la limite de 14 pas, ce qui déclenche le repli ; l'outil correct (par exemple `force_brute_affine` pour le texte affine) a parfois été appelé trop tard.
+- **Explications peu fiables** : le Pédagogue produit des phrases fausses (« clé de 20 caractères » pour une permutation de 26 lettres, « substitution polyalphabétique »), et n'appelle pas l'outil `generer_exercice` : l'exercice proposé n'est alors pas vérifié par le code, contrairement à la politique à règles (100 % d'exercices valides). C'est une limite connue de la version LLM.
+- **Format des hypothèses** : dans un cas, le Classifieur a recopié le gabarit du prompt (`monoalphabetique|polyalphabetique`) au lieu de choisir une famille.
+- Le coût est très asymétrique : environ 335 s par texte avec le LLM contre une fraction de seconde pour les règles, pour une précision inférieure.
+
+## 6.3 Perspectives
+
+Évaluer plus de textes et de répétitions avec le LLM ; tester d'autres modèles locaux et des tailles de contexte différentes ; élargir le corpus d'entraînement du Linguiste (plusieurs langues) ; remplacer la politique à règles du Cryptanalyste par un LLM guidé par des exemples (few-shot) ; ajouter des chiffrements (Playfair, Hill, transposition).
+
+## 6.4 Usage responsable
+
+Le système ne casse que des chiffrements historiques, sans valeur de sécurité aujourd'hui, sur des textes de test. Il n'envoie aucune donnée hors de la machine locale. Les exercices générés servent à l'apprentissage de la cryptanalyse.
+
 # 7. Sécurité
 
-Modèle de menaces STRIDE dans `docs/THREAT_MODEL.md` : injection via le texte chiffré (le texte n'entre pas dans le prompt), clair inventé par le LLM (le code a le dernier mot), boucle infinie (bornes de pas et d'essais), élévation de privilèges (listes blanches, aucun outil shell/fichier/réseau), fuite de données (réseau local uniquement, gitleaks en CI).
+Modèle de menaces STRIDE complet dans `docs/THREAT_MODEL.md` (table menace / scénario / contre-mesure / test) : injection via le texte chiffré (le texte n'entre pas dans le prompt), clair inventé par le LLM (le code a le dernier mot), boucle infinie (bornes de pas et d'essais), élévation de privilèges (listes blanches, aucun outil shell/fichier/réseau), fuite de données (réseau local uniquement, gitleaks en CI).
 
 # 8. Reproductibilité
 
@@ -149,6 +318,50 @@ Modèle de menaces STRIDE dans `docs/THREAT_MODEL.md` : injection via le texte c
 # 9. Usage de l'IA
 
 Voir `AI_USAGE.md` : conception et code réalisés avec l'assistance de Claude (Anthropic), sous la direction et la relecture de l'auteur ; résultats issus uniquement de l'exécution du dépôt.
+
+# Annexe A — Prompts des agents (version 1.0)
+
+Les prompts sont versionnés dans `src/vigenere_squad/prompts/` ; leurs empreintes SHA-256 figurent dans `results/ENVIRONMENT.json`.
+{prompts_txt}
+
+# Annexe B — Configuration de l'expérience (`config/experiment.yaml`)
+
+```yaml
+{config_txt}
+```
+
+# Annexe C — Reproduire pas à pas
+
+**Linux / macOS** (avec `make`) :
+
+```bash
+uv sync --frozen --extra dev
+make test
+make models && make reproduce-small   # rapide
+make reproduce                        # complet (plusieurs heures sur CPU)
+```
+
+**Windows** (sans `make`, PowerShell) :
+
+```powershell
+uv sync --frozen --extra dev
+uv run --frozen pytest
+uv run --frozen python scripts/reproduce.py --small
+uv run --frozen python -m vigenere_squad.evaluate --llm-seul --modeles qwen3:4b --par-cellule 1 --repetitions 1 --timeout 240
+```
+
+Pour reproduire uniquement les mesures sans LLM : `uv run --frozen python scripts/reproduce.py --no-llm`. Vérification d'intégrité : `uv run --frozen python scripts/hashes.py --check` puis `minisign -Vm SHA256SUMS -p minisign.pub`.
+
+# Annexe D — Glossaire
+
+- **IC** : indice de coïncidence, probabilité que deux lettres tirées au hasard dans le texte soient identiques.
+- **Kasiski** : méthode qui déduit la longueur de la clé des distances entre séquences répétées.
+- **Autoclave (autokey)** : Vigenère dont la clé se prolonge avec le texte clair lui-même.
+- **Beaufort** : variante de Vigenère où l'on soustrait le texte à la clé.
+- **Quadrigramme** : suite de quatre lettres ; leur fréquence mesure la vraisemblance d'un texte.
+- **Repli** : décision de l'orchestrateur d'abandonner une hypothèse ou un agent défaillant.
+- **Trace** : journal JSONL de tous les messages, appels d'outils et décisions.
+- **Schéma JSON** : description de la forme exacte attendue pour la réponse d'un LLM.
 
 # Références
 
