@@ -47,9 +47,9 @@ Quatre agents à rôles disjoints, un orchestrateur Python explicite (`orchestra
 # 4. Protocole expérimental
 
 Corpus généré avec la graine 42 (SHA-256 `b5b1280ccafdb132…`) : 6 chiffrements × 5 longueurs × 5 textes. Les textes clairs sont tirés d'un fichier de test que le modèle de langue n'a jamais vu.
-Chaque mesure est répétée 3 fois (graines 42–44). Succès : au moins 95 % de lettres exactes. Comparaisons : (a) outils seuls ; (b) agents à règles sans LLM ; (c)–(d) deux LLM locaux.
+Chaque mesure est répétée 3 fois (graines 42–44). Succès : au moins 95 % de lettres exactes. Comparaisons : (a) outils seuls ; (b) agents à règles sans LLM ; (c) un LLM local (`qwen3:4b`) sur un petit sous-ensemble.
 Tous les paramètres sont dans `config/experiment.yaml` ; l'environnement (versions, matériel, digest des modèles, hachages des prompts) dans `results/ENVIRONMENT.json`.
-Environnement de cette exécution : Python 3.13.18, Linux-6.18.44-fc-v338-x86_64-with-glibc2.39, 2 CPU, durée 270.9 s, pic mémoire 62.8 Mo.
+Environnement de cette exécution : Python 3.13.18, Linux-6.18.44-fc-v338-x86_64-with-glibc2.39, 2 CPU, durée 270.9 s, pic mémoire 62.8 Mo. Étape LLM exécutée sur : Windows-10-10.0.26300-SP0, Python 3.11.18, 14 CPU, 15.4 Go de RAM.
 
 # 5. Résultats
 
@@ -88,7 +88,10 @@ Les agents à règles font **moins bien** que la baseline sur Vigenère et Beauf
 
 ## 5.3 Avec LLM local
 
-**Mesures LLM non exécutées dans cette version** (`option --llm absente`). Elles sont produites par `make reproduce` et remplissent cette section.
+**qwen3_4b** (`qwen3:4b`) : succès 50.0 %, n=6, σ répétitions sans objet : 1 répétition, appels LLM moyens 32.6667, formats invalides moyens 0.0, durée moyenne 335.1783 s par texte.
+
+Sur 6 textes (un par chiffrement, 200 lettres, 1 répétition), `qwen3:4b` retrouve le clair pour : affine, cesar, substitution ; échec pour : autoclave, beaufort, vigenere. Les réponses sont contraintes par un schéma JSON (sorties structurées d'Ollama) : 0.0 format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées (repli moyen : 2.3333 par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** Le coût est élevé (≈ 32.6667 appels et 335.1783 s par texte sur CPU) contre une fraction de seconde pour les agents à règles.
+
 
 ## 5.4 Robustesse et pannes
 
@@ -121,7 +124,7 @@ Le Pédagogue produit des exercices valides dans 100.0 % des cas (n=60, vérifi�
 - **Résultat négatif assumé** : les agents ne battent pas la baseline en précision. Leur valeur : modularité, trace complète, explications, tolérance aux pannes, listes d'outils fermées.
 - **Corpus d'entraînement minuscule** (≈ 6,7 ko) : modèle de langue pauvre, entropie surestimée, textes de test qui se recouvrent aux grandes longueurs.
 - **Linguiste** : le seuil accepte parfois un clair en partie faux ; il suppose le français.
-- **LLM** : évalués sur un sous-ensemble (12 textes × 3 répétitions × 2 modèles) pour tenir sur un portable sans GPU.
+- **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, un seul modèle, `qwen3:4b`) pour tenir sur un portable sans GPU ; le second modèle prévu (`llama3.2:3b`) n'a pas été évalué dans le temps imparti. Les mesures LLM sont donc indicatives.
 - Pas de comparaison avec un LLM seul sans outils (hors périmètre) ; les LLM de ≤ 8 Go calculent mal des fréquences, ce qui justifie la répartition « LLM décide / code calcule ».
 
 # 7. Sécurité

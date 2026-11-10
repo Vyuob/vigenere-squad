@@ -1,0 +1,26 @@
+<!doctype html><html lang=fr><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Vigenère-Squad — résultats</title>
+<style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui;max-width:60rem;margin:2rem auto;padding:0 1rem}
+table{border-collapse:collapse;margin:.5rem 0}td,th{border:1px solid #8885;padding:.25rem .6rem;text-align:center}img{max-width:100%}code{background:#8882;padding:0 .2rem}</style>
+<h1>Vigenère-Squad — résultats</h1>
+<p>Version 1.0.0 · corpus sha256 <code>a2d1ca0d18c449f0…</code> · 24 échantillons × 1 répétitions · profil <b>small</b>.
+Succès = texte retrouvé à ≥ 95 % de lettres exactes. Toutes les valeurs proviennent de <code>results/metrics.json</code>.</p>
+<h2>Résultats principaux</h2><h3>Outils seuls (baseline sans agents) — global 88 % (n=24)</h3><table><tr><th></th><th>100</th><th>500</th></tr><tr><th>affine</th><td>100 %</td><td>100 %</td></tr><tr><th>autoclave</th><td>100 %</td><td>100 %</td></tr><tr><th>beaufort</th><td>50 %</td><td>100 %</td></tr><tr><th>cesar</th><td>100 %</td><td>100 %</td></tr><tr><th>substitution</th><td>0 %</td><td>100 %</td></tr><tr><th>vigenere</th><td>100 %</td><td>100 %</td></tr></table><h3>Agents + outils (politique à règles, sans LLM) — global 88 % (n=24)</h3><table><tr><th></th><th>100</th><th>500</th></tr><tr><th>affine</th><td>100 %</td><td>100 %</td></tr><tr><th>autoclave</th><td>100 %</td><td>100 %</td></tr><tr><th>beaufort</th><td>50 %</td><td>100 %</td></tr><tr><th>cesar</th><td>100 %</td><td>100 %</td></tr><tr><th>substitution</th><td>0 %</td><td>100 %</td></tr><tr><th>vigenere</th><td>100 %</td><td>100 %</td></tr></table>
+<h2>Avec LLM local</h2><h3>LLM petit (qwen3:0.6b) — global 0 % (n=6)</h3><table><tr><th></th><th>200</th></tr><tr><th>affine</th><td>0 %</td></tr><tr><th>autoclave</th><td>0 %</td></tr><tr><th>beaufort</th><td>0 %</td></tr><tr><th>cesar</th><td>0 %</td></tr><tr><th>substitution</th><td>0 %</td></tr><tr><th>vigenere</th><td>0 %</td></tr></table>
+<h2>Figures</h2><img src="figures/succes_par_chiffre_longueur.png" alt="Succès par chiffrement et longueur"><img src="figures/pannes.png" alt="Pannes"><img src="figures/succes_vs_unicite.png" alt="Unicité">
+<h2>Robustesse</h2><ul><li>5 % de lettres erronées : 71 %</li><li>Clair anglais : 56 %</li></ul>
+<h2>Environnement</h2><pre>{
+ &quot;python&quot;: &quot;3.11.18&quot;,
+ &quot;plateforme&quot;: &quot;Windows-10-10.0.26300-SP0&quot;,
+ &quot;cpu_count&quot;: 14,
+ &quot;ram_go&quot;: 15.4,
+ &quot;modeles_llm&quot;: {
+  &quot;petit&quot;: {
+   &quot;modele&quot;: &quot;qwen3:0.6b&quot;,
+   &quot;digest&quot;: &quot;7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435&quot;,
+   &quot;temperature&quot;: 0.0,
+   &quot;num_ctx&quot;: 4096
+  }
+ }
+}</pre>
+<p><a href="https://github.com/Vyuob/vigenere-squad">Dépôt</a></p></html>

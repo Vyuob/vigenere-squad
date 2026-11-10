@@ -18,7 +18,7 @@ Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est
 5. Robustesse : 5 % de lettres erronées → 49 % de succès ; clair anglais → 56 % (le Linguiste est entraîné sur le français, Beaufort/Vigenère courts échouent).
 
 ## Non vérifié / à faire avant remise
-- **Mesures LLM** (`llm` dans `metrics.json`) : produites uniquement par `make reproduce` sur une machine avec Ollama ; dans le dépôt de départ elles valent `non_execute`.
+- **Mesures LLM** (`llm` dans `metrics.json`) : produites uniquement par `make reproduce` sur une machine avec Ollama ; dans le dépôt elles portent sur `qwen3:4b` (6 textes, 1 répétition) ; le second modèle n'a pas été évalué.
 - Durée et mémoire de `make reproduce` avec LLM : à relever (`meta.duree_totale_s`, `meta.pic_memoire_mo`) ; non mesurées par l'auteur de l'audit.
 - DOI Zenodo, signature de `SHA256SUMS`, page GitHub Pages, exécution CI sur le tag : à effectuer depuis le compte GitHub.
 - Pas de vidéo de démonstration.

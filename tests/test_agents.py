@@ -105,3 +105,19 @@ def test_trace_jsonl(tmp_path):
     lignes = [json.loads(l) for l in (tmp_path / "r1.jsonl").read_text(encoding="utf-8").splitlines()]
     assert lignes[0]["type"] == "debut" and lignes[-1]["type"] == "fin"
     assert {"seq", "agent", "type"} <= set(lignes[3])
+
+
+class Injoignable:
+    """LLM qui ne répond jamais (timeout réseau) : l'orchestrateur doit échouer proprement (repli, trace), pas planter."""
+    name = "injoignable"
+    def digest(self): return None
+    def chat(self, role, system, user): raise TimeoutError("timed out")
+
+
+def test_llm_timeout_repli_sans_crash():
+    import numpy as np
+    clair = TEST[100:400]
+    ct = c.chiffrer("vigenere", clair, c.cle_aleatoire("vigenere", np.random.default_rng(3)))
+    st, tr = Orchestrateur(Injoignable()).resoudre(ct, "t")
+    assert st.statut == "echec" and st.repli > 0  # échec propre et tracé, pas de plantage
+    assert any(e["type"] == "llm_indisponible" for e in tr.events)

@@ -55,3 +55,9 @@ def test_hashes_roundtrip(tmp_path, monkeypatch):
     assert H.ecrire() == 0 and H.verifier() == 0
     (tmp_path / "config/a.yaml").write_text("x: 2\n", encoding="utf-8", newline="\n")
     assert H.verifier() == 1
+
+
+def test_llm_seul_exige_des_resultats(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit):
+        E.main(["--llm-seul", "--out", str(tmp_path)])

@@ -7,10 +7,26 @@ import urllib.request
 import numpy as np
 
 
+# Schéma JSON imposé à Ollama (sorties structurées) : un petit modèle ne peut plus recopier le message reçu au lieu d'y répondre.
+SCHEMA_REPONSE = {
+    "type": "object",
+    "properties": {
+        "action": {"type": "string", "enum": ["tool", "final"]},
+        "tool": {"type": "string"}, "args": {"type": "object"},
+        "famille": {"type": "string"}, "hypotheses": {"type": "array", "items": {"type": "string"}},
+        "justification": {"type": "string"}, "commentaire": {"type": "string"},
+        "plausible": {"type": "boolean"}, "raison": {"type": "string"},
+        "explication": {"type": "string"}, "exercice": {"type": "string"},
+    },
+    "required": ["action"],
+}
+
+
 class OllamaClient:
     def __init__(self, model: str, host: str = "http://localhost:11434", temperature: float = 0.0,
-                 seed: int = 42, num_ctx: int = 4096, timeout: int = 300):
+                 seed: int = 42, num_ctx: int = 4096, timeout: int = 300, num_predict: int = 512):
         self.model, self.host, self.temperature, self.seed, self.num_ctx, self.timeout = model, host, temperature, seed, num_ctx, timeout
+        self.num_predict = num_predict  # borne la sortie : un petit modèle en mode JSON peut sinon boucler jusqu'au timeout
         self.name = f"ollama:{model}"
 
     def _post(self, path: str, body: dict | None):
@@ -28,9 +44,9 @@ class OllamaClient:
             return None
 
     def chat(self, role: str, system: str, user: str) -> str:
-        body = {"model": self.model, "stream": False, "format": "json", "think": False,
+        body = {"model": self.model, "stream": False, "format": SCHEMA_REPONSE, "think": False,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                "options": {"temperature": self.temperature, "seed": self.seed, "num_ctx": self.num_ctx}}
+                "options": {"temperature": self.temperature, "seed": self.seed, "num_ctx": self.num_ctx, "num_predict": self.num_predict}}
         return self._post("/api/chat", body)["message"]["content"]
 
 

@@ -299,7 +299,37 @@
     "note": "H estimée sur un petit corpus (borne haute de l entropie -> redondance sous-estimée -> U surestimée)"
   },
   "llm": {
-    "statut": "non_execute",
-    "raison": "option --llm absente"
+    "qwen3_4b": {
+      "modele": "qwen3:4b",
+      "n": 6,
+      "succes_global": 0.5,
+      "exactitude_moyenne": 0.5175,
+      "duree_moyenne_s": 335.1783,
+      "appels_llm_moyen": 32.6667,
+      "iterations_moyen": 1.8333,
+      "repli_moyen": 2.3333,
+      "desaccords_moyen": 0.0,
+      "format_invalide_moyen": 0.0,
+      "par_chiffre": {
+        "affine": 1.0,
+        "autoclave": 0.0,
+        "beaufort": 0.0,
+        "cesar": 1.0,
+        "substitution": 1.0,
+        "vigenere": 0.0
+      },
+      "par_longueur": {
+        "200": 0.5
+      },
+      "par_cellule": {
+        "cesar|200": 1.0,
+        "affine|200": 1.0,
+        "vigenere|200": 0.0,
+        "beaufort|200": 0.0,
+        "autoclave|200": 0.0,
+        "substitution|200": 1.0
+      },
+      "duree_totale_s": 2011.1
+    }
   }
 }

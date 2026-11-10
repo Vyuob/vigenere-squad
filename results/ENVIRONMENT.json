@@ -19,5 +19,18 @@
     "linguiste.md": "0bcfa4f481985b6fb3e04ebb93dc0d440fd0fc36da60f4dbb0f2e68da76f3aed",
     "pedagogue.md": "cdb32338e236eab8dd0acbca68f51c79e3f6f1caa50a9f2e1c50e6e5f3de027b"
   },
-  "modeles_llm": {}
+  "modeles_llm": {
+    "qwen3_4b": {
+      "modele": "qwen3:4b",
+      "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+      "temperature": 0.0,
+      "num_ctx": 4096
+    }
+  },
+  "execution_llm": {
+    "plateforme": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "cpu_count": 14,
+    "ram_go": 15.4
+  }
 }

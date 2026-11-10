@@ -55,8 +55,15 @@ class Agent:
         outils = self.reg.decrire(self.role)
         for step in range(MAX_STEPS[self.role]):
             user = json.dumps({"role": self.role, "contexte": contexte, "outils_autorises": outils,
-                               "observations": obs}, ensure_ascii=False)
-            raw = self.llm.chat(self.role, self.system, user); self.stats["llm"] += 1
+                               "observations": obs,
+                               "consigne": 'Réponds maintenant par UN seul objet JSON de la forme {"action": "tool" ou "final", ...}. Ne recopie pas ce message.'},
+                              ensure_ascii=False)
+            try:
+                raw = self.llm.chat(self.role, self.system, user); self.stats["llm"] += 1
+            except OSError as e:  # TimeoutError, ConnectionError, URLError… : le LLM est injoignable ou trop lent -> repli
+                self.stats["pannes_llm"] = self.stats.get("pannes_llm", 0) + 1
+                self.trace.log(self.role, "llm_indisponible", detail=f"{type(e).__name__}: {str(e)[:150]}")
+                return None
             self.trace.log(self.role, "llm", step=step, reponse=raw[:600])
             try:
                 rep = Reponse.model_validate(json.loads(raw))

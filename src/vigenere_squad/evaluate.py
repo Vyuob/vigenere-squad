@@ -179,13 +179,57 @@ def environnement(cfg, corpus_hash, modeles) -> dict:
             "corpus_eval_sha256": corpus_hash, "prompts_sha256": prompts, "modeles_llm": modeles}
 
 
+def _llm_seul(a):
+    """Rejoue uniquement l'évaluation LLM (ex. un modèle plus gros) et la fusionne dans les résultats existants."""
+    cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8")); out = Path(a.out)
+    mpath, epath = out / "metrics.json", out / "ENVIRONMENT.json"
+    if not mpath.is_file():
+        raise SystemExit("results/metrics.json absent : lancer d'abord l'évaluation complète (sans --llm-seul)")
+    metrics = json.loads(mpath.read_text(encoding="utf-8")); env = json.loads(epath.read_text(encoding="utf-8")) if epath.is_file() else {}
+    seed, seuil, llm_cfg = cfg["seed"], cfg["succes_seuil_exactitude"], cfg["llm"]
+    tmo = a.timeout or llm_cfg.get("timeout_s", 300)
+    reps = a.repetitions or llm_cfg["repetitions"]
+    sub = llm_cfg["sous_ensemble"]
+    sel = C.generer(seed, sub["longueurs"], a.par_cellule or sub["par_cellule"], langue=cfg["corpus"]["langue"])
+    noms = a.modeles or [m["ollama"] for m in llm_cfg["modeles"].values()]
+    if not isinstance(metrics.get("llm"), dict) or "statut" in metrics["llm"]:
+        metrics["llm"] = {}
+    envm = env.get("modeles_llm") if isinstance(env.get("modeles_llm"), dict) else {}
+    for nom in noms:
+        etiq = nom.replace(":", "_")
+        mk = lambda s, nom=nom: OllamaClient(nom, temperature=llm_cfg["temperature"], seed=s, num_ctx=llm_cfg["num_ctx"], timeout=tmo, num_predict=llm_cfg.get("num_predict", 512))
+        cli0 = mk(seed)
+        envm[etiq] = {"modele": nom, "digest": cli0.digest(), "temperature": llm_cfg["temperature"], "num_ctx": llm_cfg["num_ctx"]}
+        if envm[etiq]["digest"] is None:
+            metrics["llm"][etiq] = {"statut": "non_execute", "raison": "Ollama injoignable ou modèle absent (ollama pull)"}
+            print(f"  ! {nom} indisponible"); continue
+        print(f"[llm] {nom} : {len(sel)} textes x {reps} répétition(s), délai {tmo} s/appel", flush=True)
+        t0 = time.time()
+        rr = run_agents(sel, reps, seed, seuil, mk, trace_dir=str(RACINE / f"traces/llm_{etiq}"))
+        sauver_raw(rr, out / f"raw/agents_llm_{etiq}.jsonl")
+        metrics["llm"][etiq] = {"modele": nom, **agreger(rr), "duree_totale_s": round(time.time() - t0, 1)}
+    env["modeles_llm"] = envm
+    # la machine qui a exécuté l'étape LLM peut différer de celle du reste de results/ : on la consigne
+    env["execution_llm"] = {"plateforme": platform.platform(), "python": sys.version.split()[0], "cpu_count": os.cpu_count(), "ram_go": _ram_go()}
+    mpath.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8", newline="\n")
+    epath.write_text(json.dumps(env, indent=2, ensure_ascii=False), encoding="utf-8", newline="\n")
+    print(f"OK -> {mpath} (étape LLM fusionnée)")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=str(RACINE / "config/experiment.yaml"))
     ap.add_argument("--profil", choices=["full", "small"], default="full")
     ap.add_argument("--llm", action="store_true", help="évaluer avec Ollama (sinon : baseline + agents scriptés seulement)")
     ap.add_argument("--out", default=str(RACINE / "results"))
+    ap.add_argument("--llm-seul", action="store_true", help="ne refaire que l'étape LLM et la fusionner dans results/metrics.json existant (voir --modeles)")
+    ap.add_argument("--modeles", nargs="+", help="modèles Ollama pour --llm-seul (défaut : ceux de config/experiment.yaml)")
+    ap.add_argument("--repetitions", type=int, help="répétitions pour --llm-seul (défaut : config)")
+    ap.add_argument("--par-cellule", type=int, help="échantillons par (chiffre, longueur) pour --llm-seul (défaut : config)")
+    ap.add_argument("--timeout", type=int, help="délai max par appel LLM en secondes pour --llm-seul")
     a = ap.parse_args(argv)
+    if a.llm_seul:
+        return _llm_seul(a)
     cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8")); out = Path(a.out); t_start = time.time()
     seed, seuil = cfg["seed"], cfg["succes_seuil_exactitude"]
     small = a.profil == "small"
@@ -236,16 +280,17 @@ def main(argv=None):
     if a.llm:
         llm_cfg = cfg["llm"]
         ss = cfg["profil_small"] if small else llm_cfg
+        tmo = ss.get("timeout_s", llm_cfg.get("timeout_s", 300))  # délai max par appel LLM (s) ; au-delà : repli sur les outils
         sel = [s for s in C.generer(seed, ss["sous_ensemble"]["longueurs"], ss["sous_ensemble"]["par_cellule"], langue=cfg["corpus"]["langue"])]
         liste = {"petit": {"ollama": cfg["profil_small"]["modele"]}} if small else llm_cfg["modeles"]
         metrics["llm"] = {}
         for etiq, mc in liste.items():
-            cli0 = OllamaClient(mc["ollama"], temperature=llm_cfg["temperature"], seed=seed, num_ctx=llm_cfg["num_ctx"])
+            cli0 = OllamaClient(mc["ollama"], temperature=llm_cfg["temperature"], seed=seed, num_ctx=llm_cfg["num_ctx"], timeout=tmo, num_predict=llm_cfg.get("num_predict", 512))
             modeles_env[etiq] = {"modele": mc["ollama"], "digest": cli0.digest(), "temperature": llm_cfg["temperature"], "num_ctx": llm_cfg["num_ctx"]}
             if modeles_env[etiq]["digest"] is None:
                 metrics["llm"][etiq] = {"statut": "non_execute", "raison": "Ollama injoignable ou modèle absent (ollama pull)"}
                 print(f"  ! {mc['ollama']} indisponible"); continue
-            fab = lambda s, mc=mc: OllamaClient(mc["ollama"], temperature=llm_cfg["temperature"], seed=s, num_ctx=llm_cfg["num_ctx"])
+            fab = lambda s, mc=mc: OllamaClient(mc["ollama"], temperature=llm_cfg["temperature"], seed=s, num_ctx=llm_cfg["num_ctx"], timeout=tmo, num_predict=llm_cfg.get("num_predict", 512))
             rr = run_agents(sel, ss["repetitions"], seed, seuil, fab, trace_dir=str(RACINE / f"traces/llm_{etiq}"))
             sauver_raw(rr, out / f"raw/agents_llm_{etiq}.jsonl"); metrics["llm"][etiq] = {"modele": mc["ollama"], **agreger(rr)}
     else:

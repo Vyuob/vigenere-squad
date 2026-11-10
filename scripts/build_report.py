@@ -23,7 +23,18 @@ llm = m.get("llm", {})
 if "statut" in llm:
     tl = f"**Mesures LLM non exécutées dans cette version** (`{llm.get('raison')}`). Elles sont produites par `make reproduce` et remplissent cette section."
 else:
-    tl = "\n".join(f"**{k}** (`{v.get('modele')}`) : succès {P(v.get('succes_global'))}, n={v.get('n')}, σ répétitions {v.get('ecart_type_repetitions')}, appels LLM moyens {v.get('appels_llm_moyen')}, formats invalides moyens {v.get('format_invalide_moyen')}, durée moyenne {v.get('duree_moyenne_s')} s par texte.\n" if v.get("n") else f"**{k}** : non exécuté.\n" for k, v in llm.items())
+    tl = "\n".join(f"**{k}** (`{v.get('modele')}`) : succès {P(v.get('succes_global'))}, n={v.get('n')}, σ répétitions {v.get('ecart_type_repetitions', 'sans objet : 1 répétition')}, appels LLM moyens {v.get('appels_llm_moyen')}, formats invalides moyens {v.get('format_invalide_moyen')}, durée moyenne {v.get('duree_moyenne_s')} s par texte.\n" if v.get("n") else f"**{k}** : non exécuté.\n" for k, v in llm.items())
+if "statut" not in llm:
+    for k_, v_ in llm.items():
+        if v_.get("n"):
+            ok_ = [c for c, x in v_["par_chiffre"].items() if x >= 0.5]; ko_ = [c for c, x in v_["par_chiffre"].items() if x < 0.5]
+            tl += (f"\nSur {v_['n']} textes (un par chiffrement, 200 lettres, 1 répétition), `{v_['modele']}` retrouve le clair pour : {', '.join(ok_) or 'aucun'} ; "
+                   f"échec pour : {', '.join(ko_) or 'aucun'}. Les réponses sont contraintes par un schéma JSON (sorties structurées d'Ollama) : "
+                   f"{v_.get('format_invalide_moyen')} format invalide en moyenne. L'orchestrateur rejette les conclusions non fondées "
+                   f"(repli moyen : {v_.get('repli_moyen')} par texte). **n est très petit : ces chiffres sont indicatifs, pas statistiquement significatifs.** "
+                   f"Le coût est élevé (≈ {v_.get('appels_llm_moyen')} appels et {v_.get('duree_moyenne_s')} s par texte sur CPU) contre une fraction de seconde pour les agents à règles.\n")
+exe = env.get("execution_llm")
+exe_txt = (f" Étape LLM exécutée sur : {exe['plateforme']}, Python {exe['python']}, {exe['cpu_count']} CPU, {exe['ram_go']} Go de RAM." if exe else "")
 sh = m["shannon"]; k = m["kasiski"]
 md = f"""---
 title: "Vigenère-Squad — une équipe d'agents LLM locaux pour la cryptanalyse classique"
@@ -74,9 +85,9 @@ Quatre agents à rôles disjoints, un orchestrateur Python explicite (`orchestra
 # 4. Protocole expérimental
 
 Corpus généré avec la graine {m['meta']['seed']} (SHA-256 `{m['meta']['corpus_sha256'][:16]}…`) : 6 chiffrements × 5 longueurs × 5 textes. Les textes clairs sont tirés d'un fichier de test que le modèle de langue n'a jamais vu.
-Chaque mesure est répétée {m['meta']['repetitions']} fois (graines 42–44). Succès : au moins {int(100 * m['meta']['seuil_succes_exactitude'])} % de lettres exactes. Comparaisons : (a) outils seuls ; (b) agents à règles sans LLM ; (c)–(d) deux LLM locaux.
+Chaque mesure est répétée {m['meta']['repetitions']} fois (graines 42–44). Succès : au moins {int(100 * m['meta']['seuil_succes_exactitude'])} % de lettres exactes. Comparaisons : (a) outils seuls ; (b) agents à règles sans LLM ; (c) un LLM local (`qwen3:4b`) sur un petit sous-ensemble.
 Tous les paramètres sont dans `config/experiment.yaml` ; l'environnement (versions, matériel, digest des modèles, hachages des prompts) dans `results/ENVIRONMENT.json`.
-Environnement de cette exécution : Python {env['python']}, {env['plateforme']}, {env['cpu_count']} CPU, durée {m['meta']['duree_totale_s']} s, pic mémoire {m['meta']['pic_memoire_mo']} Mo.
+Environnement de cette exécution : Python {env['python']}, {env['plateforme']}, {env['cpu_count']} CPU, durée {m['meta']['duree_totale_s']} s, pic mémoire {m['meta']['pic_memoire_mo']} Mo.{exe_txt}
 
 # 5. Résultats
 
@@ -124,7 +135,7 @@ Le Pédagogue produit des exercices valides dans {P(m['exercices_pedagogue']['ta
 - **Résultat négatif assumé** : les agents ne battent pas la baseline en précision. Leur valeur : modularité, trace complète, explications, tolérance aux pannes, listes d'outils fermées.
 - **Corpus d'entraînement minuscule** (≈ 6,7 ko) : modèle de langue pauvre, entropie surestimée, textes de test qui se recouvrent aux grandes longueurs.
 - **Linguiste** : le seuil accepte parfois un clair en partie faux ; il suppose le français.
-- **LLM** : évalués sur un sous-ensemble (12 textes × 3 répétitions × 2 modèles) pour tenir sur un portable sans GPU.
+- **LLM** : évalué sur un sous-ensemble minimal (6 textes de 200 lettres, 1 répétition, un seul modèle, `qwen3:4b`) pour tenir sur un portable sans GPU ; le second modèle prévu (`llama3.2:3b`) n'a pas été évalué dans le temps imparti. Les mesures LLM sont donc indicatives.
 - Pas de comparaison avec un LLM seul sans outils (hors périmètre) ; les LLM de ≤ 8 Go calculent mal des fréquences, ce qui justifie la répartition « LLM décide / code calcule ».
 
 # 7. Sécurité

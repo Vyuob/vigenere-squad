@@ -14,6 +14,8 @@ pannes:
 llm:
   temperature: 0.0
   seed: 42
+  num_predict: 512          # nombre max de jetons générés par réponse (les réponses JSON attendues sont courtes)
+  timeout_s: 300            # délai max par appel LLM ; dépassé -> l'agent échoue proprement et l'orchestrateur se replie sur les outils
   num_ctx: 4096             # 8 Go : contexte 4096 (cf. annexe A)
   modeles:                  # `digest` est relevé automatiquement via l'API Ollama et écrit dans results/ENVIRONMENT.json
     principal: {etiquette: "qwen3:4b", ollama: "qwen3:4b"}
@@ -22,6 +24,7 @@ llm:
   repetitions: 3
 profil_small:                # `make reproduce-small` (CI) : petit modèle, 1 répétition
   modele: "qwen3:0.6b"
+  timeout_s: 60
   sous_ensemble: {longueurs: [200], par_cellule: 1}
   repetitions: 1
   taille_corpus: {longueurs: [100, 500], par_cellule: 2}
