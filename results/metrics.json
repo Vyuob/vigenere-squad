@@ -1,0 +1,305 @@
+{
+  "meta": {
+    "profil": "full",
+    "n_echantillons": 150,
+    "repetitions": 3,
+    "seed": 42,
+    "seuil_succes_exactitude": 0.95,
+    "corpus_sha256": "b5b1280ccafdb1324ee5e8f6b26323609cd6fd35408cbb9b465adbdc7f1e8987",
+    "duree_totale_s": 270.9,
+    "pic_memoire_mo": 62.8
+  },
+  "outils_seuls": {
+    "n": 450,
+    "succes_global": 0.8667,
+    "exactitude_moyenne": 0.9161,
+    "duree_moyenne_s": 0.1599,
+    "succes_par_repetition": [
+      0.86,
+      0.88,
+      0.86
+    ],
+    "ecart_type_repetitions": 0.0094,
+    "par_chiffre": {
+      "affine": 1.0,
+      "autoclave": 0.84,
+      "beaufort": 0.84,
+      "cesar": 1.0,
+      "substitution": 0.56,
+      "vigenere": 0.96
+    },
+    "par_longueur": {
+      "50": 0.5667,
+      "100": 0.8222,
+      "200": 0.9444,
+      "500": 1.0,
+      "1000": 1.0
+    },
+    "par_cellule": {
+      "cesar|50": 1.0,
+      "cesar|100": 1.0,
+      "cesar|200": 1.0,
+      "cesar|500": 1.0,
+      "cesar|1000": 1.0,
+      "affine|50": 1.0,
+      "affine|100": 1.0,
+      "affine|200": 1.0,
+      "affine|500": 1.0,
+      "affine|1000": 1.0,
+      "vigenere|50": 0.8,
+      "vigenere|100": 1.0,
+      "vigenere|200": 1.0,
+      "vigenere|500": 1.0,
+      "vigenere|1000": 1.0,
+      "beaufort|50": 0.4,
+      "beaufort|100": 0.8,
+      "beaufort|200": 1.0,
+      "beaufort|500": 1.0,
+      "beaufort|1000": 1.0,
+      "autoclave|50": 0.2,
+      "autoclave|100": 1.0,
+      "autoclave|200": 1.0,
+      "autoclave|500": 1.0,
+      "autoclave|1000": 1.0,
+      "substitution|50": 0.0,
+      "substitution|100": 0.1333,
+      "substitution|200": 0.6667,
+      "substitution|500": 1.0,
+      "substitution|1000": 1.0
+    }
+  },
+  "agents_scriptes": {
+    "n": 450,
+    "succes_global": 0.8556,
+    "exactitude_moyenne": 0.8987,
+    "duree_moyenne_s": 0.1589,
+    "appels_llm_moyen": 16.28,
+    "iterations_moyen": 2.0533,
+    "repli_moyen": 0.0,
+    "desaccords_moyen": 0.0,
+    "format_invalide_moyen": 0.0,
+    "succes_par_repetition": [
+      0.8533,
+      0.8533,
+      0.86
+    ],
+    "ecart_type_repetitions": 0.0031,
+    "par_chiffre": {
+      "affine": 1.0,
+      "autoclave": 0.96,
+      "beaufort": 0.72,
+      "cesar": 1.0,
+      "substitution": 0.6533,
+      "vigenere": 0.8
+    },
+    "par_longueur": {
+      "50": 0.6111,
+      "100": 0.7111,
+      "200": 0.9556,
+      "500": 1.0,
+      "1000": 1.0
+    },
+    "par_cellule": {
+      "cesar|50": 1.0,
+      "cesar|100": 1.0,
+      "cesar|200": 1.0,
+      "cesar|500": 1.0,
+      "cesar|1000": 1.0,
+      "affine|50": 1.0,
+      "affine|100": 1.0,
+      "affine|200": 1.0,
+      "affine|500": 1.0,
+      "affine|1000": 1.0,
+      "vigenere|50": 0.6,
+      "vigenere|100": 0.6,
+      "vigenere|200": 0.8,
+      "vigenere|500": 1.0,
+      "vigenere|1000": 1.0,
+      "beaufort|50": 0.2,
+      "beaufort|100": 0.4,
+      "beaufort|200": 1.0,
+      "beaufort|500": 1.0,
+      "beaufort|1000": 1.0,
+      "autoclave|50": 0.8,
+      "autoclave|100": 1.0,
+      "autoclave|200": 1.0,
+      "autoclave|500": 1.0,
+      "autoclave|1000": 1.0,
+      "substitution|50": 0.0667,
+      "substitution|100": 0.2667,
+      "substitution|200": 0.9333,
+      "substitution|500": 1.0,
+      "substitution|1000": 1.0
+    }
+  },
+  "robustesse": {
+    "bruit_frappe": {
+      "n": 150,
+      "succes_global": 0.4867,
+      "exactitude_moyenne": 0.7669,
+      "duree_moyenne_s": 0.2027,
+      "appels_llm_moyen": 18.5467,
+      "iterations_moyen": 2.48,
+      "repli_moyen": 0.0,
+      "desaccords_moyen": 0.0,
+      "format_invalide_moyen": 0.0,
+      "par_chiffre": {
+        "affine": 0.84,
+        "autoclave": 0.0,
+        "beaufort": 0.48,
+        "cesar": 0.8,
+        "substitution": 0.36,
+        "vigenere": 0.44
+      },
+      "par_longueur": {
+        "50": 0.4,
+        "100": 0.4667,
+        "200": 0.6333,
+        "500": 0.8333,
+        "1000": 0.1
+      },
+      "par_cellule": {
+        "cesar|50": 1.0,
+        "cesar|100": 1.0,
+        "cesar|200": 1.0,
+        "cesar|500": 1.0,
+        "cesar|1000": 0.0,
+        "affine|50": 1.0,
+        "affine|100": 1.0,
+        "affine|200": 1.0,
+        "affine|500": 1.0,
+        "affine|1000": 0.2,
+        "vigenere|50": 0.4,
+        "vigenere|100": 0.2,
+        "vigenere|200": 0.6,
+        "vigenere|500": 1.0,
+        "vigenere|1000": 0.0,
+        "beaufort|50": 0.0,
+        "beaufort|100": 0.4,
+        "beaufort|200": 0.8,
+        "beaufort|500": 1.0,
+        "beaufort|1000": 0.2,
+        "autoclave|50": 0.0,
+        "autoclave|100": 0.0,
+        "autoclave|200": 0.0,
+        "autoclave|500": 0.0,
+        "autoclave|1000": 0.0,
+        "substitution|50": 0.0,
+        "substitution|100": 0.2,
+        "substitution|200": 0.4,
+        "substitution|500": 1.0,
+        "substitution|1000": 0.2
+      },
+      "taux_bruit": 0.05
+    },
+    "anglais": {
+      "n": 36,
+      "succes_global": 0.5556,
+      "exactitude_moyenne": 0.8421,
+      "duree_moyenne_s": 0.3283,
+      "appels_llm_moyen": 20.8611,
+      "iterations_moyen": 3.0,
+      "repli_moyen": 0.0,
+      "desaccords_moyen": 0.0,
+      "format_invalide_moyen": 0.0,
+      "par_chiffre": {
+        "affine": 1.0,
+        "autoclave": 1.0,
+        "beaufort": 0.0,
+        "cesar": 0.8333,
+        "substitution": 0.0,
+        "vigenere": 0.5
+      },
+      "par_longueur": {
+        "200": 0.5,
+        "500": 0.6111
+      },
+      "par_cellule": {
+        "cesar|200": 0.6667,
+        "cesar|500": 1.0,
+        "affine|200": 1.0,
+        "affine|500": 1.0,
+        "vigenere|200": 0.3333,
+        "vigenere|500": 0.6667,
+        "beaufort|200": 0.0,
+        "beaufort|500": 0.0,
+        "autoclave|200": 1.0,
+        "autoclave|500": 1.0,
+        "substitution|200": 0.0,
+        "substitution|500": 0.0
+      }
+    }
+  },
+  "pannes": {
+    "llm": {
+      "0.0": {
+        "succes_global": 0.9833,
+        "repli_moyen": 0.0,
+        "format_invalide_moyen": 0.0
+      },
+      "0.1": {
+        "succes_global": 0.9833,
+        "repli_moyen": 0.0333,
+        "format_invalide_moyen": 1.7333
+      },
+      "0.2": {
+        "succes_global": 0.9333,
+        "repli_moyen": 0.25,
+        "format_invalide_moyen": 4.65
+      },
+      "0.3": {
+        "succes_global": 0.85,
+        "repli_moyen": 0.85,
+        "format_invalide_moyen": 7.9
+      }
+    },
+    "outil": {
+      "0.0": {
+        "succes_global": 0.9833,
+        "repli_moyen": 0.0
+      },
+      "0.1": {
+        "succes_global": 0.9833,
+        "repli_moyen": 0.0
+      },
+      "0.2": {
+        "succes_global": 0.9833,
+        "repli_moyen": 0.0
+      },
+      "0.3": {
+        "succes_global": 0.9833,
+        "repli_moyen": 0.0
+      }
+    }
+  },
+  "kasiski": {
+    "vigenere": {
+      "n": 20,
+      "longueur_vraie_dans_top3": 1.0
+    },
+    "autoclave": {
+      "n": 20,
+      "longueur_vraie_dans_top3": 0.65
+    }
+  },
+  "exercices_pedagogue": {
+    "n": 60,
+    "valides": 60,
+    "taux": 1.0
+  },
+  "shannon": {
+    "entropie_bits_par_lettre": 3.127,
+    "redondance_bits_par_lettre": 1.573,
+    "distance_unicite_lettres": {
+      "cesar": 3.0,
+      "affine": 5.3,
+      "vigenere_6": 17.9,
+      "substitution": 56.2
+    },
+    "note": "H estimée sur un petit corpus (borne haute de l entropie -> redondance sous-estimée -> U surestimée)"
+  },
+  "llm": {
+    "statut": "non_execute",
+    "raison": "option --llm absente"
+  }
+}

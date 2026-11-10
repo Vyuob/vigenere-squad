@@ -1,0 +1,10 @@
+{
+  "title": "Vigenère-Squad : équipe d'agents LLM locaux pour la cryptanalyse classique",
+  "upload_type": "software",
+  "description": "Système multi-agents (Classifieur, Cryptanalyste, Linguiste, Pédagogue) qui identifie et casse César, affine, Vigenère, Beaufort, autoclave et substitution. Outils déterministes, orchestrateur explicite, traces JSONL, protocole expérimental reproductible (make reproduce).",
+  "creators": [{"name": "Vyuob"}],
+  "license": "MIT",
+  "keywords": ["cryptanalysis", "classical ciphers", "multi-agent", "LLM", "reproducibility", "open science"],
+  "language": "fra",
+  "access_right": "open"
+}

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vigenere-squad"
+version = "1.0.0"
+description = "Équipe d'agents LLM locaux (Classifieur, Cryptanalyste, Linguiste, Pédagogue) qui casse les chiffrements classiques"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Vyuob" }]
+dependencies = ["numpy>=1.26", "pydantic>=2.6", "PyYAML>=6.0", "matplotlib>=3.8"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5"]
+
+[project.scripts]
+vigenere-squad = "vigenere_squad.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vigenere_squad = ["prompts/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["vigenere_squad"]

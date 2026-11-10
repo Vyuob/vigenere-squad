@@ -1,0 +1,58 @@
+name: ci
+on:
+  push: { branches: [main], tags: ["v*"] }
+  pull_request:
+permissions: { contents: read }
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix: { os: [ubuntu-latest, macos-latest, windows-latest] }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen --extra dev
+      - run: uv run --frozen pytest --cov=vigenere_squad --cov-fail-under=70
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+  reproduce-small:
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen --extra dev
+      - name: Installer Ollama et un très petit modèle (qwen3:0.6b)
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &) ; sleep 8
+          ollama pull qwen3:0.6b
+      - run: make reproduce-small
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metriques-et-traces
+          path: |
+            results/metrics.json
+            results/ENVIRONMENT.json
+            results/figures
+            traces
+            site
+  pages:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: reproduce-small
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: metriques-et-traces, path: . }
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - uses: actions/deploy-pages@v4

@@ -1,0 +1,28 @@
+# Configuration unique de l'expérience : tout paramètre qui influence un résultat est ici.
+seed: 42
+corpus:
+  langue: fr
+  longueurs: [50, 100, 200, 500, 1000]
+  par_cellule: 5            # 6 chiffrements x 5 longueurs x 5 = 150 échantillons
+  repetitions: 3            # >= 3 répétitions par mesure (graines seed, seed+1, seed+2)
+robustesse:
+  bruit_frappe: 0.05        # 5 % de lettres du chiffré remplacées
+  anglais: true             # texte clair anglais (le linguiste est entraîné sur le français)
+pannes:
+  p_llm: [0.0, 0.1, 0.2, 0.3]   # proportion de réponses LLM corrompues
+  p_outil: [0.0, 0.1, 0.2, 0.3] # proportion d'appels d'outil en panne
+llm:
+  temperature: 0.0
+  seed: 42
+  num_ctx: 4096             # 8 Go : contexte 4096 (cf. annexe A)
+  modeles:                  # `digest` est relevé automatiquement via l'API Ollama et écrit dans results/ENVIRONMENT.json
+    principal: {etiquette: "qwen3:4b", ollama: "qwen3:4b"}
+    second:    {etiquette: "llama3.2:3b", ollama: "llama3.2:3b"}
+  sous_ensemble: {longueurs: [200], par_cellule: 2}   # 6 chiffrements x 1 longueur x 2 = 12 échantillons
+  repetitions: 3
+profil_small:                # `make reproduce-small` (CI) : petit modèle, 1 répétition
+  modele: "qwen3:0.6b"
+  sous_ensemble: {longueurs: [200], par_cellule: 1}
+  repetitions: 1
+  taille_corpus: {longueurs: [100, 500], par_cellule: 2}
+succes_seuil_exactitude: 0.95

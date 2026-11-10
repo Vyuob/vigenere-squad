@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "python": "3.13.18",
+  "plateforme": "Linux-6.18.44-fc-v338-x86_64-with-glibc2.39",
+  "cpu_count": 2,
+  "ram_go": 7.8,
+  "paquets": {
+    "numpy": "2.5.3",
+    "pydantic": "2.13.5",
+    "PyYAML": "6.0.3",
+    "matplotlib": "3.11.2"
+  },
+  "pic_memoire_mo": 63.6,
+  "config_sha256": "b52f2074724c2f8a60f971a462d2dc19f3ce41ae5d55244935df3600adb8b79c",
+  "corpus_eval_sha256": "b5b1280ccafdb1324ee5e8f6b26323609cd6fd35408cbb9b465adbdc7f1e8987",
+  "prompts_sha256": {
+    "classifieur.md": "103dcae72c5140736249d91b99e1e81866501de4e7dcd1d99a4238d24dacd78b",
+    "cryptanalyste.md": "116e92687ddfffc17bfa1a52b9252efa6d599a984b05685cd3b8b2c18bb805ef",
+    "linguiste.md": "0bcfa4f481985b6fb3e04ebb93dc0d440fd0fc36da60f4dbb0f2e68da76f3aed",
+    "pedagogue.md": "cdb32338e236eab8dd0acbca68f51c79e3f6f1caa50a9f2e1c50e6e5f3de027b"
+  },
+  "modeles_llm": {}
+}
