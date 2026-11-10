@@ -8,4 +8,4 @@ repository-code: "https://github.com/Vyuob/vigenere-squad"
 authors:
   - alias: "Vyuob"
     # orcid: "https://orcid.org/0000-0000-0000-0000"   # à renseigner
-doi: "10.5281/zenodo.24110323"                        # à renseigner après la release v1.0.0
+doi: "10.5281/zenodo.24110323"
