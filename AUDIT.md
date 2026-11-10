@@ -23,3 +23,5 @@ Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est
 - Durée et mémoire de la reproduction hors LLM : 271 s, pic 63 Mo (`meta.duree_totale_s`, `meta.pic_memoire_mo`), Linux 2 CPU, 7,8 Go.
 - Pas de vidéo de démonstration.
 - **Limites observées avec le LLM** (`traces/llm_qwen3_4b/`) : boucles d'appels d'outil jusqu'à la limite de pas, explications du Pédagogue parfois fausses, exercices non vérifiés lorsque l'outil `generer_exercice` n'est pas appelé, gabarit du prompt recopié par le Classifieur dans un cas.
+- **Écart entre `v1.0.0` et `main`** : la release et l'archive Zenodo `v1.0.0` contiennent l'ancienne mise en page du rapport (contenu identique) et un `SHA256SUMS` qui listait six fichiers de construction (`src/*.egg-info`) absents du dépôt ; cela est corrigé sur `main` (`scripts/hashes.py`). Les installeurs (`*.bat`, `*.sh`) ne sont que sur `main`.
+- **Installeurs** : `installer.bat`, `verifier.bat` et `demo.bat` testés sous Windows 10 ; les `.sh` testés sous Linux ; non testés sous macOS. Les scripts de reproduction (`reproduire_*`) n'ont pas été exécutés depuis ces installeurs.

@@ -11,7 +11,18 @@ chiffré → Classifieur (IC, Kasiski) → Cryptanalyste (attaque) → Linguiste
 Orchestrateur explicite (`src/vigenere_squad/orchestrator.py`), état partagé typé, **liste d'outils fermée par agent**, trace JSONL de chaque message et appel d'outil,
 replis en cas de panne. Détails : [SYSTEM_CARD.md](SYSTEM_CARD.md), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), [AUDIT.md](AUDIT.md), [AI_USAGE.md](AI_USAGE.md).
 
-## Démarrage rapide (sans LLM, 1 minute)
+## Démarrage rapide (un double-clic)
+Télécharger la branche `main` (bouton **Code → Download ZIP** de la page du dépôt, ou `git clone`), décompresser, puis :
+
+| Action | Windows | Linux / macOS |
+|---|---|---|
+| Installer + tests | `installer.bat` | `./installer.sh` |
+| Démonstration locale (navigateur) | `demo.bat` | `./demo.sh` |
+| Vérifier tests + empreintes + signature | `verifier.bat` | `./verifier.sh` |
+
+Prérequis : une connexion Internet à la première exécution (le script installe `uv`, qui installe Python et les dépendances). Sous Windows, un `.bat` téléchargé peut déclencher un avertissement : « Informations complémentaires » puis « Exécuter quand même ». Les installeurs sont sur `main` (ils ne figurent pas dans l'archive Zenodo de `v1.0.0`). Détails : [INSTALL.md](INSTALL.md). La reproduction avec LLM demande en plus Ollama.
+
+## En ligne de commande (sans LLM, 1 minute)
 ```bash
 uv sync --frozen --extra dev        # Python ≥ 3.11
 make test                           # 61 tests
@@ -62,4 +73,4 @@ Voir la [page des résultats](https://vyuob.github.io/vigenere-squad/) (génér�
 Corpus modeste, LLM évalué sur un sous-ensemble, français uniquement : voir la section « Limites connues » de [SYSTEM_CARD.md](SYSTEM_CARD.md).
 
 ## Licence et citation
-MIT (code), CC0 (textes d'exemple). Citer via [CITATION.cff](CITATION.cff) ; archive Zenodo de la release `v1.0.0`.
+MIT (code), CC0 (textes d'exemple). Citer via [CITATION.cff](CITATION.cff) ; archive Zenodo de la release `v1.0.0` (DOI [10.5281/zenodo.24110323](https://doi.org/10.5281/zenodo.24110323)).
