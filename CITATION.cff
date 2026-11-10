@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Si vous utilisez ce logiciel, merci de le citer."
 title: "Vigenère-Squad : équipe d'agents LLM locaux pour la cryptanalyse classique"
 version: 1.0.0
-date-released: "2026-11-15"
+date-released: "2026-11-10"
 license: MIT
 repository-code: "https://github.com/Vyuob/vigenere-squad"
 authors:
