@@ -18,7 +18,7 @@ Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est
 5. Robustesse : 5 % de lettres erronées → 49 % de succès ; clair anglais → 56 % (le Linguiste est entraîné sur le français, Beaufort/Vigenère courts échouent).
 
 ## Vérifications externes et limites restantes
-- **Fait** : archive Zenodo (DOI 10.5281/zenodo.24110323), signature minisign de `SHA256SUMS`, page GitHub Pages, exécution CI sur le tag `v1.0.0` (run 42825725967).
+- **Fait** : archive Zenodo (DOI de toutes les versions 10.5281/zenodo.24110322 ; le DOI de la version évaluée et l'empreinte de son archive figurent sur la fiche de dépôt), signature minisign de `SHA256SUMS`, page GitHub Pages, exécution CI verte sur le tag `v1.0.0` (URL du run sur la fiche de dépôt).
 - **Mesures LLM** (`llm` dans `metrics.json`) : produites sur une machine avec Ollama ; dans le dépôt elles portent sur trois modèles (`qwen3:4b` 50 %, `qwen3:0.6b` 0 %, `llama3.2:3b` 0 % ; 6 textes, 1 répétition chacun, Windows, CPU seul).
 - Durée et mémoire de la reproduction hors LLM : 271 s, pic 63 Mo (`meta.duree_totale_s`, `meta.pic_memoire_mo`), Linux 2 CPU, 7,8 Go.
 - Pas de vidéo de démonstration.
