@@ -20,7 +20,8 @@ def lister() -> list[str]:
     out = []
     for d in DOSSIERS:
         for p in (R / d).rglob("*"):
-            if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+            if (p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
+                    and not any(x.endswith(".egg-info") for x in p.parts)):
                 out.append(p.relative_to(R).as_posix())
     out += [f for f in FICHIERS if (R / f).is_file()]
     return sorted(set(out))  # tri par octets, identique sur tous les OS
