@@ -14,7 +14,7 @@ replis en cas de panne. Détails : [SYSTEM_CARD.md](SYSTEM_CARD.md), [docs/THREA
 ## Démarrage rapide (sans LLM, 1 minute)
 ```bash
 uv sync --frozen --extra dev        # Python ≥ 3.11
-make test                           # 57 tests
+make test                           # 61 tests
 uv run vigenere-squad resoudre "PHVVDJH..."          # politique à règles
 uv run vigenere-squad demo                           # interface locale http://127.0.0.1:8765
 uv run vigenere-squad rejouer traces/scripted/vigenere-200-0-r0.jsonl   # rejouer une trace

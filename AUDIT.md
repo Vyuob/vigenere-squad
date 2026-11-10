@@ -3,7 +3,7 @@
 Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est faible. Les chiffres viennent de `results/metrics.json`.
 
 ## Vérifié (reproductible par `make test` / `make reproduce`)
-- **57 tests** passent ; couverture ≥ 98 % sur `tools/analysis.py`, `tools/ciphers.py`, `tools/lang.py`, 86 % globale (seuil CI : 70 %).
+- **61 tests** passent ; couverture ≥ 98 % sur `tools/analysis.py`, `tools/ciphers.py`, `tools/lang.py`, 86 % globale (seuil CI : 70 %).
 - Vecteurs de test connus (César, affine, Vigenère « LEMON »), aller-retour chiffrement/déchiffrement des 6 chiffres, déterminisme du corpus (graine 42).
 - Sécurité : outil hors liste blanche refusé et tracé, arguments hors bornes refusés, JSON invalide rejeté puis repli, le code a le dernier mot sur le Linguiste.
 - Évaluation (profil `full`, politique à règles, 150 textes × 3 répétitions) : outils seuls **86,7 %** de succès (σ répétitions 0,009), agents à règles **85,6 %** (σ 0,003).
@@ -17,9 +17,9 @@ Ce document dit ce qui a été vérifié, ce qui ne l'a pas été, et ce qui est
 4. Entropie estimée à 3,1 bits/lettre (borne haute, trop grande car modèle pauvre) → distances d'unicité surestimées (valeurs de `shannon` à lire comme ordres de grandeur).
 5. Robustesse : 5 % de lettres erronées → 49 % de succès ; clair anglais → 56 % (le Linguiste est entraîné sur le français, Beaufort/Vigenère courts échouent).
 
-## Non vérifié / à faire avant remise
-- **Mesures LLM** (`llm` dans `metrics.json`) : produites uniquement par `make reproduce` sur une machine avec Ollama ; dans le dépôt elles portent sur `qwen3:4b` (6 textes, 1 répétition) ; le second modèle n'a pas été évalué.
-- Durée et mémoire de `make reproduce` avec LLM : à relever (`meta.duree_totale_s`, `meta.pic_memoire_mo`) ; non mesurées par l'auteur de l'audit.
-- DOI Zenodo, signature de `SHA256SUMS`, page GitHub Pages, exécution CI sur le tag : à effectuer depuis le compte GitHub.
+## Vérifications externes et limites restantes
+- **Fait** : archive Zenodo (DOI 10.5281/zenodo.24110323), signature minisign de `SHA256SUMS`, page GitHub Pages, exécution CI sur le tag `v1.0.0` (run 42825725967).
+- **Mesures LLM** (`llm` dans `metrics.json`) : produites sur une machine avec Ollama ; dans le dépôt elles portent sur `qwen3:4b` (6 textes, 1 répétition, Windows, CPU seul, 2 011 s). Le second modèle n'a pas été évalué.
+- Durée et mémoire de la reproduction hors LLM : 271 s, pic 63 Mo (`meta.duree_totale_s`, `meta.pic_memoire_mo`), Linux 2 CPU, 7,8 Go.
 - Pas de vidéo de démonstration.
 - **Limites observées avec le LLM** (`traces/llm_qwen3_4b/`) : boucles d'appels d'outil jusqu'à la limite de pas, explications du Pédagogue parfois fausses, exercices non vérifiés lorsque l'outil `generer_exercice` n'est pas appelé, gabarit du prompt recopié par le Classifieur dans un cas.
