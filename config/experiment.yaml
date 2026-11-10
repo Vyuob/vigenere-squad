@@ -28,4 +28,11 @@ profil_small:                # `make reproduce-small` (CI) : petit modèle, 1 r�
   sous_ensemble: {longueurs: [200], par_cellule: 1}
   repetitions: 1
   taille_corpus: {longueurs: [100, 500], par_cellule: 2}
+  cle_vs_longueur: {longueurs_cle: [4, 8], longueurs_texte: [100, 300], par_cellule: 2}
+cle_vs_longueur:             # Vigenère, clés 3 à 12 : longueur minimale de succès vs distance d'unicité de Shannon (sans LLM)
+  longueurs_cle: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  longueurs_texte: [30, 50, 75, 100, 150, 200, 300, 500, 1000]
+  par_cellule: 10
+explications:                # grille automatique sur n explications tirées au hasard (graine seed)
+  n: 10
 succes_seuil_exactitude: 0.95

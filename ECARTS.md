@@ -13,12 +13,12 @@ Ce document liste, sans les masquer, ce qui diffère du sujet (Projet 1) ou n'a 
   pas en flux continu.
 - **Évaluation LLM minimale.** 6 textes de 200 lettres, 1 répétition par modèle, trois modèles (`qwen3:4b`, `qwen3:0.6b`, `llama3.2:3b`) (le sujet demande ≥ 3 répétitions pour les mesures dépendant
   du modèle) : résultats indicatifs, sans écart type, non significatifs.
-- **Longueur de clé.** La figure « succès en fonction de la longueur du texte et distance d'unicité » est fournie ; la figure
-  « longueur minimale de succès en fonction de la longueur de clé » n'a pas été produite : les clés ont 3 à 8 lettres (3 à 7 pour
-  l'autoclave) au lieu de 3 à 12, et les résultats ne sont pas ventilés par longueur de clé. La longueur minimale de succès à 90 %
-  par procédé est fournie dans le rapport (§5.2).
+- **Longueur de clé.** Le corpus principal a des clés de 3 à 8 lettres (3 à 7 pour l'autoclave). La figure « longueur minimale de succès
+  en fonction de la longueur de clé » est produite par une expérience dédiée sur Vigenère (clés de 3 à 12, 10 textes par cellule,
+  `evaluate --complements`), comparée à la distance d'unicité de Shannon ; elle ne couvre pas les autres chiffrements.
+- **Grille d'explications automatique.** La grille sur 10 explications tirées au hasard est notée par un programme (5 critères × 2 points),
+  pas par un humain, et porte sur les agents à règles ; les explications des LLM ne sont pas notées.
 
 ## Non réalisé
 - **Vidéo de démonstration** (lien n°7 de la fiche).
-- **Grille de qualité des explications** notée sur 10 explications tirées au hasard.
 - **Historique de commits** : bref (dépôt recréé avant publication) ; il n'atteste pas un travail étalé dans le temps.

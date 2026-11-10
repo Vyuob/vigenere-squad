@@ -179,6 +179,129 @@ def environnement(cfg, corpus_hash, modeles) -> dict:
             "corpus_eval_sha256": corpus_hash, "prompts_sha256": prompts, "modeles_llm": modeles}
 
 
+def _cle_aleatoire_long(rng, k: int) -> str:
+    return "".join(rng.choice(list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), k))
+
+
+def cle_vs_longueur(seed: int, longueurs_cle, longueurs_texte, par_cellule: int, seuil: float, avec_agents: bool = True) -> dict:
+    """Vigenère : succès en fonction de (longueur de clé, longueur du texte), comparé à la distance d'unicité U(k)=k*log2(26)/D.
+    Longueur minimale de succès = plus petite longueur de texte testée dont le taux est >= 90 % pour elle et toutes les longueurs supérieures."""
+    rng = np.random.default_rng(seed + 7)
+    src = C.texte_test("fr"); D = shannon(src)["redondance_bits_par_lettre"]
+    brut, grille = [], {}
+    for k in longueurs_cle:
+        for L in longueurs_texte:
+            L2 = min(L, len(src)); res = {"outils_seuls": [], "agents_scriptes": []}
+            for i in range(par_cellule):
+                off = int(rng.integers(0, len(src) - L2 + 1)); clair = src[off:off + L2]; cle = _cle_aleatoire_long(rng, k)
+                ct = ciphers.chiffrer("vigenere", clair, cle)
+                r = an.solveur_outils_seuls(ct, seed + i)
+                res["outils_seuls"].append(int(exactitude(r["clair"], clair) >= seuil))
+                if avec_agents:
+                    st, _ = Orchestrateur(ScriptedClient(), seed=seed + i).resoudre(ct, f"k{k}-L{L}-{i}")
+                    res["agents_scriptes"].append(int(exactitude(st.clair, clair) >= seuil))
+            for m, v in res.items():
+                if v:
+                    grille.setdefault(m, {})[f"{k}|{L}"] = round(float(np.mean(v)), 4)
+                    brut.append({"methode": m, "longueur_cle": k, "longueur_texte": L, "n": len(v), "succes": round(float(np.mean(v)), 4)})
+    ls = sorted(longueurs_texte)
+    def lmin(m, k):
+        ok = [grille[m].get(f"{k}|{L}", 0) >= 0.9 for L in ls]
+        for i in range(len(ls)):
+            if all(ok[i:]):
+                return ls[i]
+        return None
+    out = {"longueurs_cle": list(longueurs_cle), "longueurs_texte": ls, "par_cellule": par_cellule, "seuil_succes_cellule": 0.9,
+           "redondance_bits_par_lettre": D, "unicite_theorique": {str(k): round(k * math.log2(26) / D, 1) for k in longueurs_cle},
+           "succes": grille, "longueur_min_empirique": {m: {str(k): lmin(m, k) for k in longueurs_cle} for m in grille}}
+    return out, brut
+
+
+def _nombres(x) -> list[float]:
+    """Tous les nombres (non booléens) contenus dans une structure JSON."""
+    if isinstance(x, bool):
+        return []
+    if isinstance(x, (int, float)):
+        return [float(x)]
+    if isinstance(x, dict):
+        return [n for v in x.values() for n in _nombres(v)]
+    if isinstance(x, (list, tuple)):
+        return [n for v in x for n in _nombres(v)]
+    return []
+
+
+def noter_explication(s: dict, st, trace) -> dict:
+    """Grille automatique /10 (5 critères x 2 points) : ce n'est PAS une notation humaine."""
+    import re
+    expl = st.explication or ""
+    c = {}
+    c["type_correct"] = int(st.type_chiffre == s["chiffre"] and s["chiffre"] in expl)
+    # clé fonctionnellement correcte : la clé citée, appliquée au chiffré, redonne le vrai clair (les lettres rares d'une substitution peuvent différer)
+    try:
+        cle_cit = tuple(json.loads(st.cle)) if st.type_chiffre == "affine" else int(st.cle) if st.type_chiffre == "cesar" else st.cle
+        fonctionne = st.type_chiffre == s["chiffre"] and ciphers.dechiffrer(st.type_chiffre, s["chiffre_texte"], cle_cit) == s["clair"]
+    except Exception:  # noqa: BLE001
+        fonctionne = False
+    c["cle_correcte"] = int(fonctionne and str(st.cle) in expl)
+    # fidélité : chaque nombre cité figure (à l'arrondi près) dans une sortie d'outil, une décision de l'orchestrateur ou le nombre de tentatives
+    sources = [n for e in trace.events if e["type"] in ("outil", "decision") for n in _nombres({k: v for k, v in e.items() if k not in ("seq", "t_ms", "run_id")})]
+    sources.append(float(len(st.tentatives))); sources.append(float(len(st.cle or "")))
+    cles_txt = re.sub(re.escape(str(st.cle)), "", expl) if st.cle else expl
+    cites = [m for m in re.findall(r"-?\d+(?:[.,]\d+)?", cles_txt)]
+    def ok(txt):
+        v = float(txt.replace(",", ".")); dec = len(txt.split(".")[-1].split(",")[-1]) if re.search(r"[.,]", txt) else 0
+        return any(abs(v - a) <= 0.5 * 10 ** (-dec) + 1e-9 for a in sources)
+    c["nombres_fideles"] = int(all(ok(t) for t in cites))
+    c["verification_mentionnee"] = int(st.statut == "resolu" and re.search(r"v[ée]rifi|plausible", expl, re.I) is not None)
+    ex = next((e for e in trace.events if e["type"] == "outil" and e.get("outil") == "generer_exercice" and isinstance(e.get("resultat"), dict)), None)
+    valide = 0
+    if ex and "enonce" in ex["resultat"]:
+        r = ex["resultat"]; cle = tuple(r["cle"]) if r["type"] == "affine" else r["cle"]
+        valide = int(ciphers.dechiffrer(r["type"], r["enonce"], cle) == r["corrige_clair"])
+    c["exercice_valide"] = valide
+    return {"id": s["id"], "chiffre": s["chiffre"], "longueur": s["longueur"], "criteres": c, "note_sur_10": 2 * sum(c.values()),
+            "explication": expl}
+
+
+def grille_explications(corpus, seed: int, n: int = 10) -> dict:
+    """Tire n textes au hasard (graine fixée) et note l'explication produite par le Pédagogue avec la grille automatique ci-dessus."""
+    rng = np.random.default_rng(seed + 11)
+    idx = sorted(int(i) for i in rng.choice(len(corpus), size=min(n, len(corpus)), replace=False))
+    lignes = []
+    for i in idx:
+        s = corpus[i]
+        st, tr = Orchestrateur(ScriptedClient(), seed=seed).resoudre(s["chiffre_texte"], f"expl-{s['id']}")
+        lignes.append(noter_explication(s, st, tr))
+    crit = list(lignes[0]["criteres"])
+    return {"n": len(lignes), "bareme": "5 critères x 2 points = /10 ; grille automatique (pas de notation humaine) ; agents à règles",
+            "note_moyenne_sur_10": round(float(np.mean([l["note_sur_10"] for l in lignes])), 2),
+            "taux_par_critere": {k: round(float(np.mean([l["criteres"][k] for l in lignes])), 2) for k in crit}, "cas": lignes}
+
+
+def _complements(a):
+    """Ne refait que (1) la courbe longueur de clé vs unicité et (2) la grille d'explications, et les fusionne dans results/metrics.json (résultats LLM conservés)."""
+    cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8")); out = Path(a.out)
+    mpath = out / "metrics.json"
+    if not mpath.is_file():
+        raise SystemExit("results/metrics.json absent : lancer d'abord l'évaluation complète")
+    metrics = json.loads(mpath.read_text(encoding="utf-8"))
+    seed, seuil = cfg["seed"], cfg["succes_seuil_exactitude"]
+    cv = cfg["profil_small"]["cle_vs_longueur"] if a.profil == "small" else cfg["cle_vs_longueur"]
+    t0 = time.time()
+    print("[compl 1/2] longueur minimale de succès vs longueur de clé (Vigenère)", flush=True)
+    res, brut = cle_vs_longueur(seed, cv["longueurs_cle"], cv["longueurs_texte"], cv["par_cellule"], seuil)
+    res["duree_s"] = round(time.time() - t0, 1)
+    metrics["cle_vs_longueur"] = res; sauver_raw(brut, out / "raw/cle_vs_longueur.jsonl")
+    print("[compl 2/2] grille de qualité des explications", flush=True)
+    corpus = C.charger(RACINE / "data/corpus_eval.jsonl")
+    g = grille_explications(corpus, seed, cfg["explications"]["n"])
+    metrics["qualite_explications"] = g
+    mpath.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8", newline="\n")
+    from .figures import tracer
+    tracer(metrics, out / "figures")
+    print(f"OK -> {mpath} (compléments fusionnés ; LLM conservé)")
+
+
 def _llm_seul(a):
     """Rejoue uniquement l'évaluation LLM (ex. un modèle plus gros) et la fusionne dans les résultats existants."""
     cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8")); out = Path(a.out)
@@ -226,10 +349,13 @@ def main(argv=None):
     ap.add_argument("--modeles", nargs="+", help="modèles Ollama pour --llm-seul (défaut : ceux de config/experiment.yaml)")
     ap.add_argument("--repetitions", type=int, help="répétitions pour --llm-seul (défaut : config)")
     ap.add_argument("--par-cellule", type=int, help="échantillons par (chiffre, longueur) pour --llm-seul (défaut : config)")
+    ap.add_argument("--complements", action="store_true", help="ne refaire que la courbe longueur de clé/unicité et la grille d'explications (fusion dans metrics.json, LLM conservé)")
     ap.add_argument("--timeout", type=int, help="délai max par appel LLM en secondes pour --llm-seul")
     a = ap.parse_args(argv)
     if a.llm_seul:
         return _llm_seul(a)
+    if a.complements:
+        return _complements(a)
     cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8")); out = Path(a.out); t_start = time.time()
     seed, seuil = cfg["seed"], cfg["succes_seuil_exactitude"]
     small = a.profil == "small"
@@ -274,6 +400,10 @@ def main(argv=None):
     metrics["kasiski"] = kasiski_etude(C.generer(seed + 1, [500], 20, ("vigenere", "autoclave")))
     metrics["exercices_pedagogue"] = exercices_valides()
     metrics["shannon"] = shannon(C.texte_test("fr"))
+    cv = cfg["profil_small"]["cle_vs_longueur"] if small else cfg["cle_vs_longueur"]
+    metrics["cle_vs_longueur"], brut_cv = cle_vs_longueur(seed, cv["longueurs_cle"], cv["longueurs_texte"], cv["par_cellule"], seuil)
+    sauver_raw(brut_cv, out / "raw/cle_vs_longueur.jsonl")
+    metrics["qualite_explications"] = grille_explications(corpus, seed, cfg["explications"]["n"])
 
     print("[6/6] LLM local")
     modeles_env = {}

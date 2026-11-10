@@ -147,6 +147,14 @@ outils_tab = petit(outils_tab)
 exe = env.get("execution_llm")
 exe_txt = (f" Étape LLM exécutée sur : {exe['plateforme']}, Python {exe['python']}, {exe['cpu_count']} CPU, {exe['ram_go']} Go de RAM." if exe else "")
 sh = m["shannon"]; k = m["kasiski"]
+cv = m["cle_vs_longueur"]; qe = m["qualite_explications"]
+_fm = lambda v: str(v) if v else "non atteint"
+cle_tab = "| clé | $U$ (Shannon) | outils seuls | agents à règles |\n|---|---|---|---|\n" + "".join(
+    f"| {k_} | {cv['unicite_theorique'][str(k_)]} | {_fm(cv['longueur_min_empirique']['outils_seuls'][str(k_)])} | {_fm(cv['longueur_min_empirique']['agents_scriptes'][str(k_)])} |\n" for k_ in cv["longueurs_cle"])
+_ok = [k_ for k_ in cv["longueurs_cle"] if cv["longueur_min_empirique"]["outils_seuls"][str(k_)]]
+_rap = [round(cv["longueur_min_empirique"]["outils_seuls"][str(k_)] / cv["unicite_theorique"][str(k_)], 1) for k_ in _ok]
+expl_tab = "| cas | note /10 | type | clé | nombres | vérification | exercice |\n|---|---|---|---|---|---|---|\n" + "".join(
+    f"| {c['id']} | {c['note_sur_10']} | " + " | ".join("oui" if c["criteres"][x] else "non" for x in ("type_correct", "cle_correcte", "nombres_fideles", "verification_mentionnee", "exercice_valide")) + " |\n" for c in qe["cas"])
 md = f"""---
 title: "Vigenère-Squad — une équipe d'agents LLM locaux pour la cryptanalyse classique"
 author: "Vyuob"
@@ -298,6 +306,13 @@ Le succès réel exige davantage de lettres que $U$ : l'unicité est une conditi
 
 ![Succès vs longueur](../results/figures/succes_vs_unicite.png){{width=75%}}
 
+**Longueur minimale de succès selon la longueur de clé (Vigenère, clés de 3 à 12).** Pour chaque longueur de clé $k$ de {cv['longueurs_cle'][0]} à {cv['longueurs_cle'][-1]} et chaque longueur de texte parmi {cv['longueurs_texte']}, {cv['par_cellule']} textes sont chiffrés avec une clé tirée au hasard ; on retient la plus petite longueur dont le taux de succès est ≥ 90 % pour elle et pour toutes les longueurs supérieures. Elle est comparée à la distance d'unicité $U(k)=k\\log_2 26/D$ avec $D$ = {cv['redondance_bits_par_lettre']} bits/lettre (expérience sans LLM, `evaluate --complements`).
+
+{cle_tab}
+![Longueur minimale de succès vs longueur de clé](../results/figures/longueur_min_vs_cle.png){{width=75%}}
+
+**Lecture.** $U$ croît linéairement avec $k$ ; la longueur minimale empirique croît aussi, mais reste de {min(_rap)} à {max(_rap)} fois supérieure à $U$ pour les outils seuls : $U$ est une borne nécessaire pour un attaquant sans limite de calcul, pas une prédiction pour une attaque réelle. Les agents à règles ont besoin de textes plus longs, et échouent pour $k=12$ : leur politique ne teste que les 4 meilleures longueurs candidates de Kasiski, qui ne contiennent pas toujours la vraie longueur quand elle est grande (la baseline teste toutes les longueurs de 2 à 12). Avec {cv['par_cellule']} textes par cellule, les valeurs sont indicatives (un échec change le taux de 10 points).
+
 Le Pédagogue produit des exercices valides dans {P(m['exercices_pedagogue']['taux'])} des cas (n={m['exercices_pedagogue']['n']}, vérifiés par déchiffrement avec la clé du corrigé).
 
 ## 5.6 Étude de cas : une trace complète
@@ -313,6 +328,13 @@ On y lit : (1) le Classifieur mesure l'IC (0,047, proche de l'aléatoire) et Kas
 {trace_llm}
 
 On y voit le modèle enchaîner des appels d'outils valides, puis conclure « final » en citant une attaque qu'il n'a jamais exécutée : l'orchestrateur le détecte et ignore l'hypothèse (événement `repli`). C'est le comportement attendu de la séparation « le LLM décide, le code vérifie ».
+
+## 5.7 Qualité des explications (grille automatique)
+
+{qe['n']} textes sont tirés au hasard dans le corpus d'évaluation (graine 42) ; le Pédagogue (agents à règles) explique chaque résolution. Chaque explication est notée par un **programme** sur 10 (5 critères × 2 points) : (1) le type de chiffrement cité est le bon ; (2) la clé citée, appliquée au chiffré, redonne le vrai clair ; (3) chaque nombre cité figure (à l'arrondi près) dans la trace des outils ; (4) la vérification linguistique est mentionnée et acceptée ; (5) l'exercice proposé se corrige avec sa clé. Ce n'est **pas** une notation humaine, et le gabarit des agents à règles est simple : la grille mesure surtout la fidélité aux traces, pas la qualité pédagogique. Note moyenne : **{qe['note_moyenne_sur_10']}/10**.
+
+{expl_tab}
+Les cas à moins de 10 sont ceux où l'explication est fidèle à la trace mais fausse parce que la cryptanalyse s'est trompée (par exemple un Beaufort de 50 lettres pris pour une substitution) : l'explication relaie alors une erreur sans l'inventer. Les explications rédigées par un LLM n'ont pas été notées (évaluation LLM minimale).
 
 # 6. Discussion et limites
 

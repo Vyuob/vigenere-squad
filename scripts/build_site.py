@@ -33,7 +33,7 @@ table{{border-collapse:collapse;margin:.5rem 0}}td,th{{border:1px solid #8885;pa
 Succès = texte retrouvé à ≥ {int(100 * m['meta']['seuil_succes_exactitude'])} % de lettres exactes. Toutes les valeurs proviennent de <code>results/metrics.json</code>.</p>
 <h2>Résultats principaux</h2>{table(m['outils_seuls'], 'Outils seuls (baseline sans agents)')}{table(m['agents_scriptes'], 'Agents + outils (politique à règles, sans LLM)')}
 <h2>Avec LLM local</h2>{llm_html}
-<h2>Figures</h2><img src="figures/succes_par_chiffre_longueur.png" alt="Succès par chiffrement et longueur"><img src="figures/pannes.png" alt="Pannes"><img src="figures/succes_vs_unicite.png" alt="Unicité">
+<h2>Figures</h2><img src="figures/succes_par_chiffre_longueur.png" alt="Succès par chiffrement et longueur"><img src="figures/pannes.png" alt="Pannes"><img src="figures/succes_vs_unicite.png" alt="Unicité"><img src="figures/longueur_min_vs_cle.png" alt="Longueur minimale vs longueur de clé">
 <h2>Robustesse</h2><ul><li>5 % de lettres erronées : {pc(m['robustesse']['bruit_frappe']['succes_global'])}</li><li>Clair anglais : {pc(m['robustesse'].get('anglais', {}).get('succes_global'))}</li></ul>
 <h2>Environnement</h2><pre>{html.escape(json.dumps({k: env[k] for k in ('python', 'plateforme', 'cpu_count', 'ram_go', 'modeles_llm')}, indent=1, ensure_ascii=False))}</pre>
 <p><a href="https://github.com/Vyuob/vigenere-squad">Dépôt</a></p></html>"""

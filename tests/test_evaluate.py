@@ -61,3 +61,18 @@ def test_llm_seul_exige_des_resultats(tmp_path):
     import pytest
     with pytest.raises(SystemExit):
         E.main(["--llm-seul", "--out", str(tmp_path)])
+
+
+def test_cle_vs_longueur_et_figure(tmp_path):
+    res, brut = E.cle_vs_longueur(5, [3, 6], [100, 300], 2, 0.95, avec_agents=False)
+    assert res["unicite_theorique"]["6"] > res["unicite_theorique"]["3"] and len(brut) == 4
+    assert res["longueur_min_empirique"]["outils_seuls"]["3"] in (100, 300, None)
+    figures._fig_cle({**res, "longueur_min_empirique": {"outils_seuls": {"3": 100, "6": None}, "agents_scriptes": {"3": 300, "6": 300}}}, tmp_path)
+    assert (tmp_path / "longueur_min_vs_cle.png").stat().st_size > 1000
+
+
+def test_grille_explications_deterministe():
+    corpus = C.generer(9, [100, 300], 2, ("cesar", "vigenere", "affine"))
+    g1, g2 = E.grille_explications(corpus, 9, 4), E.grille_explications(corpus, 9, 4)
+    assert g1 == g2 and g1["n"] == 4 and 0 <= g1["note_moyenne_sur_10"] <= 10
+    assert all(set(c["criteres"]) == {"type_correct", "cle_correcte", "nombres_fideles", "verification_mentionnee", "exercice_valide"} for c in g1["cas"])

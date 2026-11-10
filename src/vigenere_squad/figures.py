@@ -52,3 +52,23 @@ def tracer(m: dict, out: Path):
     ax.set_xscale("log"); ax.set_xlabel("longueur du texte (lettres, échelle log)"); ax.set_ylabel("taux de succès"); ax.set_ylim(0, 1.05)
     ax.legend(fontsize=7, ncol=2, frameon=False); ax.set_title("Succès vs longueur et distance d'unicité de Shannon", fontsize=10)
     fig.savefig(out / "succes_vs_unicite.png", dpi=150, bbox_inches="tight"); plt.close(fig)
+    if "cle_vs_longueur" in m:
+        _fig_cle(m["cle_vs_longueur"], out)
+
+
+def _fig_cle(cv: dict, out: Path):
+    """Longueur minimale de succès (>= 90 %) en fonction de la longueur de clé, contre la distance d'unicité de Shannon."""
+    ks = cv["longueurs_cle"]; plafond = max(cv["longueurs_texte"]) * 1.6
+    fig, ax = plt.subplots(figsize=(6.5, 3.9))
+    ax.plot(ks, [cv["unicite_theorique"][str(k)] for k in ks], "k--", lw=1.3, label="distance d'unicité de Shannon $U=k\\log_2 26/D$")
+    for (met, nom), col, mk in zip((("outils_seuls", "outils seuls"), ("agents_scriptes", "agents + outils (règles)")), COUL[:2], ("o", "s")):
+        v = cv["longueur_min_empirique"][met]
+        ys = [v[str(k)] if v[str(k)] is not None else plafond for k in ks]
+        ax.plot(ks, ys, mk + "-", color=col, label=nom, ms=5)
+        for k, y in zip(ks, ys):
+            if v[str(k)] is None:
+                ax.plot([k], [y], "x", color="red", ms=8)
+    ax.set_yscale("log"); ax.set_xlabel("longueur de la clé de Vigenère"); ax.set_ylabel("longueur minimale de succès (lettres)")
+    ax.set_xticks(ks); ax.legend(fontsize=7, frameon=False)
+    ax.set_title("Longueur minimale de succès (≥ 90 %) vs longueur de clé ; × = non atteint", fontsize=9)
+    fig.savefig(out / "longueur_min_vs_cle.png", dpi=150, bbox_inches="tight"); plt.close(fig)

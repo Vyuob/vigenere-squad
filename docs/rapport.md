@@ -330,6 +330,25 @@ Le succès réel exige davantage de lettres que $U$ : l'unicité est une conditi
 
 ![Succès vs longueur](../results/figures/succes_vs_unicite.png){width=75%}
 
+**Longueur minimale de succès selon la longueur de clé (Vigenère, clés de 3 à 12).** Pour chaque longueur de clé $k$ de 3 à 12 et chaque longueur de texte parmi [30, 50, 75, 100, 150, 200, 300, 500, 1000], 10 textes sont chiffrés avec une clé tirée au hasard ; on retient la plus petite longueur dont le taux de succès est ≥ 90 % pour elle et pour toutes les longueurs supérieures. Elle est comparée à la distance d'unicité $U(k)=k\log_2 26/D$ avec $D$ = 1.573 bits/lettre (expérience sans LLM, `evaluate --complements`).
+
+| clé | $U$ (Shannon) | outils seuls | agents à règles |
+|---|---|---|---|
+| 3 | 9.0 | 50 | 150 |
+| 4 | 12.0 | 75 | 150 |
+| 5 | 14.9 | 75 | 150 |
+| 6 | 17.9 | 150 | 150 |
+| 7 | 20.9 | 150 | 150 |
+| 8 | 23.9 | 200 | 200 |
+| 9 | 26.9 | 150 | 300 |
+| 10 | 29.9 | 200 | 300 |
+| 11 | 32.9 | 200 | 300 |
+| 12 | 35.9 | 300 | non atteint |
+
+![Longueur minimale de succès vs longueur de clé](../results/figures/longueur_min_vs_cle.png){width=75%}
+
+**Lecture.** $U$ croît linéairement avec $k$ ; la longueur minimale empirique croît aussi, mais reste de 5.0 à 8.4 fois supérieure à $U$ pour les outils seuls : $U$ est une borne nécessaire pour un attaquant sans limite de calcul, pas une prédiction pour une attaque réelle. Les agents à règles ont besoin de textes plus longs, et échouent pour $k=12$ : leur politique ne teste que les 4 meilleures longueurs candidates de Kasiski, qui ne contiennent pas toujours la vraie longueur quand elle est grande (la baseline teste toutes les longueurs de 2 à 12). Avec 10 textes par cellule, les valeurs sont indicatives (un échec change le taux de 10 points).
+
 Le Pédagogue produit des exercices valides dans 100.0 % des cas (n=60, vérifiés par déchiffrement avec la clé du corrigé).
 
 ## 5.6 Étude de cas : une trace complète
@@ -413,6 +432,25 @@ On y lit : (1) le Classifieur mesure l'IC (0,047, proche de l'aléatoire) et Kas
 
 
 On y voit le modèle enchaîner des appels d'outils valides, puis conclure « final » en citant une attaque qu'il n'a jamais exécutée : l'orchestrateur le détecte et ignore l'hypothèse (événement `repli`). C'est le comportement attendu de la séparation « le LLM décide, le code vérifie ».
+
+## 5.7 Qualité des explications (grille automatique)
+
+10 textes sont tirés au hasard dans le corpus d'évaluation (graine 42) ; le Pédagogue (agents à règles) explique chaque résolution. Chaque explication est notée par un **programme** sur 10 (5 critères × 2 points) : (1) le type de chiffrement cité est le bon ; (2) la clé citée, appliquée au chiffré, redonne le vrai clair ; (3) chaque nombre cité figure (à l'arrondi près) dans la trace des outils ; (4) la vérification linguistique est mentionnée et acceptée ; (5) l'exercice proposé se corrige avec sa clé. Ce n'est **pas** une notation humaine, et le gabarit des agents à règles est simple : la grille mesure surtout la fidélité aux traces, pas la qualité pédagogique. Note moyenne : **9.6/10**.
+
+| cas | note /10 | type | clé | nombres | vérification | exercice |
+|---|---|---|---|---|---|---|
+| cesar-50-1 | 10 | oui | oui | oui | oui | oui |
+| cesar-500-0 | 10 | oui | oui | oui | oui | oui |
+| affine-1000-3 | 10 | oui | oui | oui | oui | oui |
+| vigenere-50-4 | 10 | oui | oui | oui | oui | oui |
+| beaufort-50-0 | 6 | non | non | oui | oui | oui |
+| beaufort-1000-1 | 10 | oui | oui | oui | oui | oui |
+| autoclave-50-3 | 10 | oui | oui | oui | oui | oui |
+| autoclave-100-1 | 10 | oui | oui | oui | oui | oui |
+| autoclave-500-2 | 10 | oui | oui | oui | oui | oui |
+| substitution-200-3 | 10 | oui | oui | oui | oui | oui |
+
+Les cas à moins de 10 sont ceux où l'explication est fidèle à la trace mais fausse parce que la cryptanalyse s'est trompée (par exemple un Beaufort de 50 lettres pris pour une substitution) : l'explication relaie alors une erreur sans l'inventer. Les explications rédigées par un LLM n'ont pas été notées (évaluation LLM minimale).
 
 # 6. Discussion et limites
 
@@ -544,6 +582,13 @@ profil_small:                # `make reproduce-small` (CI) : petit modèle, 1 r�
   sous_ensemble: {longueurs: [200], par_cellule: 1}
   repetitions: 1
   taille_corpus: {longueurs: [100, 500], par_cellule: 2}
+  cle_vs_longueur: {longueurs_cle: [4, 8], longueurs_texte: [100, 300], par_cellule: 2}
+cle_vs_longueur:             # Vigenère, clés 3 à 12 : longueur minimale de succès vs distance d'unicité de Shannon (sans LLM)
+  longueurs_cle: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  longueurs_texte: [30, 50, 75, 100, 150, 200, 300, 500, 1000]
+  par_cellule: 10
+explications:                # grille automatique sur n explications tirées au hasard (graine seed)
+  n: 10
 succes_seuil_exactitude: 0.95
 ```
 
